@@ -1,0 +1,39 @@
+cmake_minimum_required(VERSION 3.10)
+
+# 绑定include文件地址
+include_directories(include)
+
+# 设置 OpenCV 静态库
+# set(OpenCV_STATIC ON)
+# 设置 OpenCV 的安装路径
+# set(OpenCV_DIR "./src/main/jniLibs")
+# 查找 OpenCV 的依赖
+# find_package(OpenCV REQUIRED)
+
+# 共享库，表示Android和IOS共用native.cpp文件
+add_library( 
+        opencv_plugin
+        SHARED
+        ../ios/native_code/native.cpp 
+        ../ios/native_code/image_similar.cpp 
+)
+
+add_library(
+        lib_opencv
+        SHARED
+        IMPORTED
+)
+
+# 指定.so库路径
+set_target_properties(
+        lib_opencv
+        PROPERTIES
+        IMPORTED_LOCATION 
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/main/jniLibs/${ANDROID_ABI}/libopencv_java4.so
+)
+
+target_link_libraries( 
+        opencv_plugin
+        lib_opencv
+)
+
