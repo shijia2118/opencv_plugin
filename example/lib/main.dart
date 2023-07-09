@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:image_picker/image_picker.dart';
-import 'package:opencv_plugin/opencv_plugin.dart';
+import 'package:opencv_plugin/opencv_plugin.dart' as opencv;
 import 'package:opencv_plugin_example/permittion_util.dart';
 
 void main() {
@@ -26,14 +26,16 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future getImage({required String sourceUrl, required String targetUrl}) async {
-    Future.delayed(const Duration(seconds: 3), () async {
-      var result = await Opencv.getImageSimilary(
-        sourceUrl: sourceUrl, targetUrl: targetUrl,
+    var result = await opencv.compareImageSimilarityPhash(
+      sourceUrl: sourceUrl,
+      targetUrl: targetUrl,
+    );
+    print('>>>>>>>>similar===$result');
+  }
 
-        // 'https://image.baidu.com/search/albumsdetail?tn=albumsdetail&word=%E6%B8%90%E5%8F%98%E9%A3%8E%E6%A0%BC%E6%8F%92%E7%94%BB&fr=albumslist&album_tab=%E8%AE%BE%E8%AE%A1%E7%B4%A0%E6%9D%90&album_id=409&rn=30',
-      );
-      print('>>>>>>>>result===$result');
-    });
+  Future getImageBlur({required String imageUrl}) async {
+    var result = await opencv.calculateImageBlur(imageUrl: imageUrl);
+    print('>>>>>>>>blur===$result');
   }
 
   @override
@@ -62,8 +64,11 @@ class _MyAppState extends State<MyApp> {
     if (result) {
       final ImagePicker picker = ImagePicker();
       List<XFile>? files = await picker.pickMultiImage();
-      if (files.length == 2) {
-        print('>>>>>>file1==${files[0].path}');
+      if (files.length == 1) {
+        for (int i = 0; i <= 10000; i++) {
+          await getImageBlur(imageUrl: files.first.path);
+        }
+      } else if (files.length == 2) {
         String sourceUrl = files[0].path;
         String targetUrl = files[1].path;
         await getImage(sourceUrl: sourceUrl, targetUrl: targetUrl);

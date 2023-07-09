@@ -7,10 +7,10 @@ description: |
 output: './lib/opencv_bindings.dart'
 headers:
   entry-points:
-    - 'ios/native_code/image_similar.h'
+    - 'ios/native_code/image_process.h'
 
   include-directives:
-    - 'ios/native_code/image_similar.h'
+    - 'ios/native_code/image_process.h'
 
 preamble: |
   // ignore_for_file: always_specify_types
