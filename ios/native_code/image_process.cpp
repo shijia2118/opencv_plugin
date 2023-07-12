@@ -203,45 +203,7 @@ double calculateImageBlur(const char* imagePath) {
     return static_cast<double>(nonZero);
 }
 
-/// @brief 获取相似图片数组
-/// @param queryImagePath 
-/// @param imagePaths 
-/// @return 相似图片组
-// SimilarityArray findSimilarImages(const char* queryImagePath, const char** imagePaths, int numImagePaths) {
-//     SimilarityArray result;
-//     result.size = 0;
-//     result.imagePaths = new const char*[numImagePaths];
 
-//     for (int i = 0; i < numImagePaths; i++) {
-//         const char* imagePath = imagePaths[i];
-//         // 计算当前图像与指定图像的相似度
-//         ImageSimilarity imageSimilarity = compareImageSimilarityPhash(queryImagePath, imagePath);
-
-//         // 判断是否相似，相似度阈值设为0.9
-//         if (imageSimilarity.similarity >= 0.9) {
-//             result.imagePaths[result.size++] = imagePath; // 将相似图片路径添加到相似图片路径列表中
-//         }
-//     }
-
-//     return result; // 返回相似图片路径
-// }
-
-
-
-
-// SimilarityResult findSimilarImages(const char* sourceImagePath, const char** targetImagePaths, int listSize) {
-//     SimilarityResult result;
-//     result.similarity = 0.0;
-//     for (int i = 0; i < listSize; i++) {
-//         const char* targetImagePath = targetImagePaths[i];
-//         double similarity = compareImageSimilarityPhash(sourceImagePath, targetImagePath).similarity;
-//         if (similarity > result.similarity) {
-//             result.imagePath = targetImagePath;
-//             result.similarity = similarity;
-//         }
-//     }
-//     return result;
-// }
 
 
 
