@@ -133,6 +133,7 @@ Future<double> calculateImageBlur({required String imageUrl}) async {
   return completer.future;
 }
 
+/// 以图搜图
 Future<List<SimilarImageGroup>> findSimilarImages({required String imageUrl, required List<String> imageList}) async {
   Completer<List<SimilarImageGroup>> completer = Completer<List<SimilarImageGroup>>();
   ReceivePort receivePort = ReceivePort();
@@ -141,7 +142,7 @@ Future<List<SimilarImageGroup>> findSimilarImages({required String imageUrl, req
     List<SimilarImageGroup> images = [];
     for (var url in imageList) {
       if (url != imageUrl) {
-        double similarValue = await compareImageSimilaritySSIM(sourceUrl: imageUrl, targetUrl: url);
+        double similarValue = await compareImageSimilarityHist(sourceUrl: imageUrl, targetUrl: url);
         if (similarValue > 0.9) {
           images.add(SimilarImageGroup(url: url, value: similarValue));
         }
@@ -166,34 +167,6 @@ Future<List<SimilarImageGroup>> findSimilarImages({required String imageUrl, req
   });
   return completer.future;
 }
-
-// Future<List<String>> findSimilarImages({required String imageUrl, required List<String> imageList}) async {
-//   Completer<List<String>> completer = Completer<List<String>>();
-//   ReceivePort receivePort = ReceivePort();
-
-//   List<String> onResult() {
-//     Pointer<Utf8> url = imageUrl.toNativeUtf8();
-//     Pointer<Pointer<Utf8>> urlList = strListToPointer(imageList);
-//     SimilarityResult result = _bindings.findSimilarImages(url.cast(), urlList.cast(), imageList.length);
-//     return similarityResultToList(result);
-//   }
-
-//   // 启动Isolate并传递参数
-//   Map<String, dynamic> param = {
-//     'sendPort': receivePort.sendPort,
-//     'onResult': onResult(),
-//   };
-//   Isolate.spawn(isolateFunction, param);
-
-//   // 监听receivePort并处理来自Isolate的消息
-//   receivePort.listen((dynamic message) {
-//     if (message is List<String>) {
-//       // 收到Isolate返回的结果，完成Future
-//       completer.complete(message);
-//     }
-//   });
-//   return completer.future;
-// }
 
 List<String> similarityResultToList(SimilarityResult result) {
   Map<String, dynamic> jsonMap = {
