@@ -64,6 +64,7 @@ class _MyAppState extends State<MyApp> {
     if (result) {
       final ImagePicker picker = ImagePicker();
       List<XFile>? files = await picker.pickMultiImage();
+      print('>>>>>>>>>>$files');
       if (files.length == 1) {
         for (int i = 0; i <= 10000; i++) {
           await getImageBlur(imageUrl: files.first.path);

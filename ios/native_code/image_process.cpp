@@ -166,10 +166,6 @@ ImageSimilarity compareImageSimilaritySSIM(const char* image1Path, const char* i
 }
 
 
-
-
-
-
 /// @brief 无参考图片时，图像清晰度
 /// 边缘检测法
 /// @param image 
@@ -191,6 +187,36 @@ double calculateImageBlur(const char* imagePath) {
     // 返回模糊度值（非零像素数量）
     return static_cast<double>(nonZero);
 }
+
+/// @brief 获取相似图片数组
+/// @param queryImagePath 
+/// @param imagePaths 
+/// @return 相似图片组
+SimilarityArray findSimilarImages(const char* queryImagePath, const char** imagePaths, int numImagePaths) {
+    SimilarityArray result;
+    result.size = 0;
+    result.imagePaths = new const char*[numImagePaths];
+
+    for (int i = 0; i < numImagePaths; i++) {
+        const char* imagePath = imagePaths[i];
+        // 计算当前图像与指定图像的相似度
+        ImageSimilarity imageSimilarity = compareImageSimilarityPhash(queryImagePath, imagePath);
+
+        // 判断是否相似，相似度阈值设为0.9
+        if (imageSimilarity.similarity >= 0.9) {
+            result.imagePaths[result.size++] = imagePath; // 将相似图片路径添加到相似图片路径列表中
+        }
+    }
+
+    return result; // 返回相似图片路径
+}
+
+
+
+
+
+
+
 
 
 

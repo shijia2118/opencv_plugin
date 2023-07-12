@@ -127,10 +127,49 @@ Future<double> calculateImageBlur({required String imageUrl}) async {
   return completer.future;
 }
 
+Future<List<String>> findSimilarImages({required String imageUrl, required List<String> imageList}) async {
+  Completer<List<String>> completer = Completer<List<String>>();
+  ReceivePort receivePort = ReceivePort();
+
+  List<String> onResult() {
+    Pointer<Utf8> url = imageUrl.toNativeUtf8();
+    List<String> result = _bindings
+        .findSimilarImages(url.cast(), _strListToPointer(imageList).cast(), imageList.length)
+        .imagePaths as List<String>;
+    return result;
+  }
+
+  // 启动Isolate并传递参数
+  Map<String, dynamic> param = {
+    'sendPort': receivePort.sendPort,
+    'onResult': onResult(),
+  };
+  Isolate.spawn(isolateFunction, param);
+
+  // 监听receivePort并处理来自Isolate的消息
+  receivePort.listen((dynamic message) {
+    if (message is List<String>) {
+      // 收到Isolate返回的结果，完成Future
+      completer.complete(message);
+    }
+  });
+  return completer.future;
+}
+
 void isolateFunction(dynamic parameters) {
   SendPort sendPort = parameters['sendPort'];
   // 在Isolate中执行耗时任务，例如图片处理
   var result = parameters['onResult'];
   // 将结果发送回主Isolate
   sendPort.send(result);
+}
+
+/// List<String>转Pointer<Pointer<Utf8>>
+Pointer<Pointer<Utf8>> _strListToPointer(List<String> strings) {
+  List<Pointer<Utf8>> utf8PointerList = strings.map((str) => str.toNativeUtf8()).toList();
+  final Pointer<Pointer<Utf8>> pointerPointer = malloc.allocate(utf8PointerList.length);
+  strings.asMap().forEach((index, utf) {
+    pointerPointer[index] = utf8PointerList[index];
+  });
+  return pointerPointer;
 }
