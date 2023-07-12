@@ -64,7 +64,6 @@ class _MyAppState extends State<MyApp> {
     if (result) {
       final ImagePicker picker = ImagePicker();
       List<XFile>? files = await picker.pickMultiImage();
-      print('>>>>>>>>>>$files');
       if (files.length == 1) {
         for (int i = 0; i <= 10000; i++) {
           await getImageBlur(imageUrl: files.first.path);
@@ -73,6 +72,17 @@ class _MyAppState extends State<MyApp> {
         String sourceUrl = files[0].path;
         String targetUrl = files[1].path;
         await getImage(sourceUrl: sourceUrl, targetUrl: targetUrl);
+      } else if (files.length > 2) {
+        String sourceUrl = files[0].path;
+        List<String> paths = [];
+        for (var file in files) {
+          paths.add(file.path);
+        }
+        var result = await opencv.findSimilarImages(imageUrl: sourceUrl, imageList: paths);
+        for (var r in result) {
+          print('>>>>>>>>url>>>>>${r.url}');
+          print('>>>>>>>>>value>>>>${r.value}');
+        }
       }
     }
   }

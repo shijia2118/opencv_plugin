@@ -5,6 +5,7 @@ import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
 import 'package:opencv_plugin/opencv_bindings.dart';
+import 'dart:convert';
 
 const String _libName = "opencv_plugin";
 
@@ -47,10 +48,15 @@ Future<double> compareImageSimilaritySSIM({required String sourceUrl, required S
   ReceivePort receivePort = ReceivePort();
 
   double onResult() {
-    final imagePath1 = sourceUrl.toNativeUtf8();
-    final imagePath2 = targetUrl.toNativeUtf8();
-    double result = _bindings.compareImageSimilaritySSIM(imagePath1.cast(), imagePath2.cast()).similarity;
-    return result;
+    try {
+      final imagePath1 = sourceUrl.toNativeUtf8();
+      final imagePath2 = targetUrl.toNativeUtf8();
+      double result = _bindings.compareImageSimilaritySSIM(imagePath1.cast(), imagePath2.cast()).similarity;
+      return result;
+    } catch (e) {
+      print('>>>>>>>>>>>>>>>error===${e.toString()}');
+      return 0;
+    }
   }
 
   // 启动Isolate并传递参数
@@ -127,33 +133,74 @@ Future<double> calculateImageBlur({required String imageUrl}) async {
   return completer.future;
 }
 
-Future<List<String>> findSimilarImages({required String imageUrl, required List<String> imageList}) async {
-  Completer<List<String>> completer = Completer<List<String>>();
+Future<List<SimilarImageGroup>> findSimilarImages({required String imageUrl, required List<String> imageList}) async {
+  Completer<List<SimilarImageGroup>> completer = Completer<List<SimilarImageGroup>>();
   ReceivePort receivePort = ReceivePort();
 
-  List<String> onResult() {
-    Pointer<Utf8> url = imageUrl.toNativeUtf8();
-    List<String> result = _bindings
-        .findSimilarImages(url.cast(), _strListToPointer(imageList).cast(), imageList.length)
-        .imagePaths as List<String>;
-    return result;
+  Future<List<SimilarImageGroup>> onResult() async {
+    List<SimilarImageGroup> images = [];
+    for (var url in imageList) {
+      if (url != imageUrl) {
+        double similarValue = await compareImageSimilaritySSIM(sourceUrl: imageUrl, targetUrl: url);
+        if (similarValue > 0.9) {
+          images.add(SimilarImageGroup(url: url, value: similarValue));
+        }
+      }
+    }
+    return images;
   }
 
   // 启动Isolate并传递参数
   Map<String, dynamic> param = {
     'sendPort': receivePort.sendPort,
-    'onResult': onResult(),
+    'onResult': await onResult(),
   };
-  Isolate.spawn(isolateFunction, param);
+  await Isolate.spawn(isolateFunction, param);
 
   // 监听receivePort并处理来自Isolate的消息
   receivePort.listen((dynamic message) {
-    if (message is List<String>) {
+    if (message is List<SimilarImageGroup>) {
       // 收到Isolate返回的结果，完成Future
       completer.complete(message);
     }
   });
   return completer.future;
+}
+
+// Future<List<String>> findSimilarImages({required String imageUrl, required List<String> imageList}) async {
+//   Completer<List<String>> completer = Completer<List<String>>();
+//   ReceivePort receivePort = ReceivePort();
+
+//   List<String> onResult() {
+//     Pointer<Utf8> url = imageUrl.toNativeUtf8();
+//     Pointer<Pointer<Utf8>> urlList = strListToPointer(imageList);
+//     SimilarityResult result = _bindings.findSimilarImages(url.cast(), urlList.cast(), imageList.length);
+//     return similarityResultToList(result);
+//   }
+
+//   // 启动Isolate并传递参数
+//   Map<String, dynamic> param = {
+//     'sendPort': receivePort.sendPort,
+//     'onResult': onResult(),
+//   };
+//   Isolate.spawn(isolateFunction, param);
+
+//   // 监听receivePort并处理来自Isolate的消息
+//   receivePort.listen((dynamic message) {
+//     if (message is List<String>) {
+//       // 收到Isolate返回的结果，完成Future
+//       completer.complete(message);
+//     }
+//   });
+//   return completer.future;
+// }
+
+List<String> similarityResultToList(SimilarityResult result) {
+  Map<String, dynamic> jsonMap = {
+    'imagePath': result.imagePath.cast<Utf8>().toDartString(),
+    'similarity': result.similarity,
+  };
+  return [jsonEncode(jsonMap)];
 }
 
 void isolateFunction(dynamic parameters) {
@@ -165,11 +212,24 @@ void isolateFunction(dynamic parameters) {
 }
 
 /// List<String>转Pointer<Pointer<Utf8>>
-Pointer<Pointer<Utf8>> _strListToPointer(List<String> strings) {
-  List<Pointer<Utf8>> utf8PointerList = strings.map((str) => str.toNativeUtf8()).toList();
-  final Pointer<Pointer<Utf8>> pointerPointer = malloc.allocate(utf8PointerList.length);
-  strings.asMap().forEach((index, utf) {
-    pointerPointer[index] = utf8PointerList[index];
-  });
-  return pointerPointer;
+Pointer<Pointer<Utf8>> strListToPointer(List<String> strings) {
+  final Pointer<Pointer<Utf8>> result = calloc.allocate<Pointer<Utf8>>(strings.length);
+  for (int i = 0; i < strings.length; i++) {
+    result[i] = strings[i].toNativeUtf8().cast();
+  }
+  return result;
+}
+
+List<String> pointerToStrList(Pointer<Pointer<Utf8>> pointer, int length) {
+  List<String> strings = [];
+  for (int i = 0; i < length; i++) {
+    strings.add(pointer.elementAt(i).value.toDartString());
+  }
+  return strings;
+}
+
+class SimilarImageGroup {
+  final String url;
+  final double value;
+  SimilarImageGroup({required this.url, required this.value});
 }

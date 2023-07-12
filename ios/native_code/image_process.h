@@ -1,7 +1,6 @@
 // image_process.h
 #ifndef IMAGE_PROCESS_H_
 #define IMAGE_PROCESS_H_
-
 #ifdef __cplusplus
 extern "C" 
 {
@@ -13,9 +12,9 @@ typedef struct {
 } ImageSimilarity;
 
 typedef struct  {
-    const char** imagePaths; // 相似图片路径数组
-    int size;                // 数组大小
-} SimilarityArray;
+    const char* imagePath; // 相似图片路径
+    double similarity;     // 相似度
+} SimilarityResult;
 
 // 比较图片相似度(直方图)
 ImageSimilarity compareImageSimilarityHist(const char* image1Path, const char* image2Path);
@@ -30,7 +29,7 @@ ImageSimilarity compareImageSimilaritySSIM(const char* imagePath1, const char* i
 ImageSimilarity compareImageSimilarityPhash(const char* imagePath1, const char* imagePath2);
 
 // 获取相似图片数组
-SimilarityArray findSimilarImages(const char* queryImagePath, const char** imagePaths, int numImagePaths);
+SimilarityResult findSimilarImages(const char* sourceImagePath, const char** targetImagePaths, int listSize);
 
 
 #ifdef __cplusplus

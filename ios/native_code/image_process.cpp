@@ -96,6 +96,13 @@ ImageSimilarity compareImageSimilarityPhash(const char* imagePath1, const char* 
     std::string hash1 = calculatePerceptualHash(imagePath1);
     std::string hash2 = calculatePerceptualHash(imagePath2);
 
+    if(hash1.empty() || hash2.empty()){
+        //遇到hash值为""
+        similarityData.similarity = 0.0;
+        return similarityData;
+    }
+
+
     // 比较哈希值并计算相似度
     int matchingBits = 0;
     for (int i = 0; i < hash1.length(); i++){
@@ -128,6 +135,14 @@ ImageSimilarity compareImageSimilaritySSIM(const char* image1Path, const char* i
         similarityData.similarity = 0.0;
         return similarityData;
     }
+
+    // 检查图像尺寸
+    if (image1.size() != image2.size()) {
+        // 图像尺寸不一致，返回相似度为 0
+        similarityData.similarity = 0.0;
+        return similarityData;
+    }
+
 
     // 将图片转换为浮点型
     cv::Mat image1f, image2f;
@@ -192,24 +207,51 @@ double calculateImageBlur(const char* imagePath) {
 /// @param queryImagePath 
 /// @param imagePaths 
 /// @return 相似图片组
-SimilarityArray findSimilarImages(const char* queryImagePath, const char** imagePaths, int numImagePaths) {
-    SimilarityArray result;
-    result.size = 0;
-    result.imagePaths = new const char*[numImagePaths];
+// SimilarityArray findSimilarImages(const char* queryImagePath, const char** imagePaths, int numImagePaths) {
+//     SimilarityArray result;
+//     result.size = 0;
+//     result.imagePaths = new const char*[numImagePaths];
 
-    for (int i = 0; i < numImagePaths; i++) {
-        const char* imagePath = imagePaths[i];
-        // 计算当前图像与指定图像的相似度
-        ImageSimilarity imageSimilarity = compareImageSimilarityPhash(queryImagePath, imagePath);
+//     for (int i = 0; i < numImagePaths; i++) {
+//         const char* imagePath = imagePaths[i];
+//         // 计算当前图像与指定图像的相似度
+//         ImageSimilarity imageSimilarity = compareImageSimilarityPhash(queryImagePath, imagePath);
 
-        // 判断是否相似，相似度阈值设为0.9
-        if (imageSimilarity.similarity >= 0.9) {
-            result.imagePaths[result.size++] = imagePath; // 将相似图片路径添加到相似图片路径列表中
-        }
-    }
+//         // 判断是否相似，相似度阈值设为0.9
+//         if (imageSimilarity.similarity >= 0.9) {
+//             result.imagePaths[result.size++] = imagePath; // 将相似图片路径添加到相似图片路径列表中
+//         }
+//     }
 
-    return result; // 返回相似图片路径
-}
+//     return result; // 返回相似图片路径
+// }
+
+
+
+
+// SimilarityResult findSimilarImages(const char* sourceImagePath, const char** targetImagePaths, int listSize) {
+//     SimilarityResult result;
+//     result.similarity = 0.0;
+//     for (int i = 0; i < listSize; i++) {
+//         const char* targetImagePath = targetImagePaths[i];
+//         double similarity = compareImageSimilarityPhash(sourceImagePath, targetImagePath).similarity;
+//         if (similarity > result.similarity) {
+//             result.imagePath = targetImagePath;
+//             result.similarity = similarity;
+//         }
+//     }
+//     return result;
+// }
+
+
+
+
+
+
+
+
+
+
 
 
 

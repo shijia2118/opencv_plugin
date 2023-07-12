@@ -103,26 +103,26 @@ class OpencvBindings {
               ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   /// 获取相似图片数组
-  SimilarityArray findSimilarImages(
-    ffi.Pointer<ffi.Char> queryImagePath,
-    ffi.Pointer<ffi.Pointer<ffi.Char>> imagePaths,
-    int numImagePaths,
+  SimilarityResult findSimilarImages(
+    ffi.Pointer<ffi.Char> sourceImagePath,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> targetImagePaths,
+    int listSize,
   ) {
     return _findSimilarImages(
-      queryImagePath,
-      imagePaths,
-      numImagePaths,
+      sourceImagePath,
+      targetImagePaths,
+      listSize,
     );
   }
 
   late final _findSimilarImagesPtr = _lookup<
       ffi.NativeFunction<
-          SimilarityArray Function(
+          SimilarityResult Function(
               ffi.Pointer<ffi.Char>,
               ffi.Pointer<ffi.Pointer<ffi.Char>>,
               ffi.Int)>>('findSimilarImages');
   late final _findSimilarImages = _findSimilarImagesPtr.asFunction<
-      SimilarityArray Function(
+      SimilarityResult Function(
           ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
 }
 
@@ -133,11 +133,11 @@ final class ImageSimilarity extends ffi.Struct {
   external double similarity;
 }
 
-final class SimilarityArray extends ffi.Struct {
-  /// 相似图片路径数组
-  external ffi.Pointer<ffi.Pointer<ffi.Char>> imagePaths;
+final class SimilarityResult extends ffi.Struct {
+  /// 相似图片路径
+  external ffi.Pointer<ffi.Char> imagePath;
 
-  /// 数组大小
-  @ffi.Int()
-  external int size;
+  /// 相似度
+  @ffi.Double()
+  external double similarity;
 }
