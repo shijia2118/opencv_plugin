@@ -142,7 +142,10 @@ Future<List<SimilarImageGroup>> findSimilarImages({required String imageUrl, req
     List<SimilarImageGroup> images = [];
     for (var url in imageList) {
       if (url != imageUrl) {
-        double similarValue = await compareImageSimilarityHist(sourceUrl: imageUrl, targetUrl: url);
+        // double similarValue = await compareImageSimilarityHist(sourceUrl: imageUrl, targetUrl: url);
+        // double similarValue = await compareImageSimilarityPhash(sourceUrl: imageUrl, targetUrl: url);
+        double similarValue = await compareImageSimilaritySSIM(sourceUrl: imageUrl, targetUrl: url);
+
         if (similarValue > 0.9) {
           images.add(SimilarImageGroup(url: url, value: similarValue));
         }

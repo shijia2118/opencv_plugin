@@ -78,7 +78,19 @@ class _MyAppState extends State<MyApp> {
         for (var file in files) {
           paths.add(file.path);
         }
+        DateTime startTime = DateTime.now();
         var result = await opencv.findSimilarImages(imageUrl: sourceUrl, imageList: paths);
+        DateTime endTime = DateTime.now();
+
+        Duration difference = endTime.difference(startTime);
+        int milliseconds = difference.inMilliseconds;
+        int seconds = 0;
+        if (milliseconds > 1000) {
+          seconds = (milliseconds / 1000).truncate();
+          milliseconds = milliseconds % 1000;
+        }
+        print('>>>>>>>>时间差>>>>>$seconds秒$milliseconds毫秒');
+
         for (var r in result) {
           print('>>>>>>>>url>>>>>${r.url}');
           print('>>>>>>>>>value>>>>${r.value}');
