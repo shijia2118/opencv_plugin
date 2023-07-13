@@ -46,6 +46,7 @@ ImageSimilarity compareImageSimilarityHist(const char* image1Path, const char* i
 /// @param imagePath 
 /// @return 
 std::string calculatePerceptualHash(const char* imagePath){
+
     // 读取图像
     cv::Mat image = cv::imread(imagePath);
 
@@ -64,7 +65,6 @@ std::string calculatePerceptualHash(const char* imagePath){
 
     // 计算平均灰度值
     cv::Scalar meanValue = cv::mean(grayImage);
-
     // 生成感知哈希值
     std::string hash;
     for (int i = 0; i < grayImage.rows; i++)
@@ -114,6 +114,35 @@ ImageSimilarity compareImageSimilarityPhash(const char* imagePath1, const char* 
     double similarity = static_cast<double>(matchingBits) / hash1.length();
     similarityData.similarity = similarity;
     return similarityData;
+}
+
+/// @brief  图片相似度（感知哈希，同上。但他直接返回了double）
+/// @param imagePath1 
+/// @param imagePath2 
+/// @return 
+double compareImageSimilarityPhash2(const char* imagePath1, const char* imagePath2) {
+    ImageSimilarity similarityData;
+
+    // 计算感知哈希值
+    std::string hash1 = calculatePerceptualHash(imagePath1);
+    std::string hash2 = calculatePerceptualHash(imagePath2);
+
+    if(hash1.empty() || hash2.empty()){
+        //遇到hash值为""
+        return 0.0;
+    }
+
+
+    // 比较哈希值并计算相似度
+    int matchingBits = 0;
+    for (int i = 0; i < hash1.length(); i++){
+        if (hash1[i] == hash2[i]) {
+            matchingBits++;
+        }
+    }
+
+    double similarity = static_cast<double>(matchingBits) / hash1.length();
+    return similarity;
 }
 
 
@@ -202,6 +231,73 @@ double calculateImageBlur(const char* imagePath) {
     // 返回模糊度值（非零像素数量）
     return static_cast<double>(nonZero);
 }
+
+
+
+
+
+#include <opencv2/opencv.hpp>
+#include <iostream>
+#include <vector>
+#include <string>
+
+
+
+// 计算图像的感知哈希值
+std::string computeHash(const cv::Mat& image) {
+    cv::Mat grayscale;
+    cv::cvtColor(image, grayscale, cv::COLOR_BGR2GRAY);
+    cv::resize(grayscale, grayscale, cv::Size(8, 8));
+    
+    // 计算图像的平均灰度值
+    cv::Scalar meanVal = cv::mean(grayscale);
+    double average = meanVal[0];
+    
+    // 将图像转换为二值图像
+    cv::Mat binaryImage;
+    cv::threshold(grayscale, binaryImage, average, 255, cv::THRESH_BINARY);
+    
+    // 计算图像的哈希值
+    std::string hash;
+    for (int i = 0; i < binaryImage.rows; i++) {
+        for (int j = 0; j < binaryImage.cols; j++) {
+            uchar pixel = binaryImage.at<uchar>(i, j);
+            hash += (pixel > average ? "1" : "0");
+        }
+    }
+    
+    return hash;
+}
+
+/// @brief  以图搜图
+/// @param targetImagePath 
+/// @param queryImagePaths 
+/// @param numQueryImages 
+/// @return 
+SimilarityResult imageSearchByPerceptualHash(const char* targetImagePath, const char** queryImagePaths, int numQueryImages) {
+    SimilarityResult results;
+    results.imagePaths = new const char*[numQueryImages];
+    results.similarities = new double[numQueryImages];
+    results.length = 0;
+
+    // 比较目标图像与查询图像的相似度
+    for (int i = 1; i < numQueryImages; i++) {
+        const char* queryImagePath = queryImagePaths[i];
+        double similarity = compareImageSimilarityPhash2(targetImagePath, queryImagePath);
+        
+        // 仅在相似度大于0.9时记录结果
+        if (similarity > 0.9) {
+            results.imagePaths[results.length] = queryImagePath;
+            results.similarities[results.length] = similarity;
+            results.length++;
+        }
+    }
+
+    return results;
+}
+
+
+
 
 
 

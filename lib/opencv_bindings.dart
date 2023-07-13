@@ -103,27 +103,28 @@ class OpencvBindings {
               ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   /// 获取相似图片数组
-  SimilarityResult findSimilarImages(
-    ffi.Pointer<ffi.Char> sourceImagePath,
-    ffi.Pointer<ffi.Pointer<ffi.Char>> targetImagePaths,
-    int listSize,
+  SimilarityResult imageSearchByPerceptualHash(
+    ffi.Pointer<ffi.Char> targetImagePath,
+    ffi.Pointer<ffi.Pointer<ffi.Char>> queryImagePaths,
+    int numQueryImages,
   ) {
-    return _findSimilarImages(
-      sourceImagePath,
-      targetImagePaths,
-      listSize,
+    return _imageSearchByPerceptualHash(
+      targetImagePath,
+      queryImagePaths,
+      numQueryImages,
     );
   }
 
-  late final _findSimilarImagesPtr = _lookup<
+  late final _imageSearchByPerceptualHashPtr = _lookup<
       ffi.NativeFunction<
           SimilarityResult Function(
               ffi.Pointer<ffi.Char>,
               ffi.Pointer<ffi.Pointer<ffi.Char>>,
-              ffi.Int)>>('findSimilarImages');
-  late final _findSimilarImages = _findSimilarImagesPtr.asFunction<
-      SimilarityResult Function(
-          ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
+              ffi.Int)>>('imageSearchByPerceptualHash');
+  late final _imageSearchByPerceptualHash =
+      _imageSearchByPerceptualHashPtr.asFunction<
+          SimilarityResult Function(ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
 }
 
 /// 定义用于存储相似度数据的结构体
@@ -134,10 +135,13 @@ final class ImageSimilarity extends ffi.Struct {
 }
 
 final class SimilarityResult extends ffi.Struct {
-  /// 相似图片路径
-  external ffi.Pointer<ffi.Char> imagePath;
+  /// 相似图片路径数组
+  external ffi.Pointer<ffi.Pointer<ffi.Char>> imagePaths;
 
-  /// 相似度
-  @ffi.Double()
-  external double similarity;
+  /// 相似度数组
+  external ffi.Pointer<ffi.Double> similarities;
+
+  /// 数组长度
+  @ffi.Int()
+  external int length;
 }

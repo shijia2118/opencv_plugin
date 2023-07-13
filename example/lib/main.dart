@@ -79,7 +79,7 @@ class _MyAppState extends State<MyApp> {
           paths.add(file.path);
         }
         DateTime startTime = DateTime.now();
-        var result = await opencv.findSimilarImages(imageUrl: sourceUrl, imageList: paths);
+        var result = await opencv.searchImageByPerceptualHash(imageUrl: sourceUrl, imageList: paths);
         DateTime endTime = DateTime.now();
 
         Duration difference = endTime.difference(startTime);
@@ -92,6 +92,7 @@ class _MyAppState extends State<MyApp> {
         print('>>>>>>>>时间差>>>>>$seconds秒$milliseconds毫秒');
 
         for (var r in result) {
+          print('>>>>>>>>>>>>原图>>>>>>$sourceUrl');
           print('>>>>>>>>url>>>>>${r.url}');
           print('>>>>>>>>>value>>>>${r.value}');
         }

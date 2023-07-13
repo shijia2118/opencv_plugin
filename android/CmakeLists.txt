@@ -14,7 +14,6 @@ include_directories(include)
 add_library( 
         opencv_plugin
         SHARED
-        ../ios/native_code/native.cpp 
         ../ios/native_code/image_process.cpp 
 )
 
