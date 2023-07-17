@@ -74,6 +74,9 @@
         "compare": "cpp",
         "concepts": "cpp",
         "numeric": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "fstream": "cpp",
+        "stack": "cpp",
+        "filesystem": "cpp"
     }
 }

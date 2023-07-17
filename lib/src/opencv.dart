@@ -208,6 +208,15 @@ void isolateFunction(dynamic parameters) {
   sendPort.send(result);
 }
 
+/// 以视频搜视频
+Future<List<SimilarImageGroup>> findSimilarVideos({required String videourl, required List<String> videoUrls}) async {
+  Pointer<Utf8> originUrl = videourl.toNativeUtf8();
+  Pointer<Pointer<Utf8>> targetUrls = convertStringListToPointer(videoUrls);
+  SimilarityResult result =
+      _bindings.findSimilarVideos(originUrl.cast(), targetUrls.cast<Pointer<Char>>(), videoUrls.length);
+  return pointerToStringList(result);
+}
+
 List<SimilarImageGroup> pointerToStringList(SimilarityResult similarityResult) {
   List<SimilarImageGroup> list = [];
   int length = similarityResult.length;

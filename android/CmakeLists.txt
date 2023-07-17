@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.10)
 # 绑定include文件地址
 include_directories(include)
 
+set(OPENCV_VIDEOIO_BUILD_3RDPARTY_LIBS ON)
+
 # 设置 OpenCV 静态库
 # set(OpenCV_STATIC ON)
 # 设置 OpenCV 的安装路径

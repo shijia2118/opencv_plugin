@@ -5,8 +5,10 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <iostream>
+#include <opencv2/opencv.hpp>
 
 using namespace cv;
+using namespace std;
 
 /// @brief 图片相似度(直方图)
 /// @param image1Path 
@@ -232,43 +234,6 @@ double calculateImageBlur(const char* imagePath) {
     return static_cast<double>(nonZero);
 }
 
-
-
-
-
-#include <opencv2/opencv.hpp>
-#include <iostream>
-#include <vector>
-#include <string>
-
-
-
-// 计算图像的感知哈希值
-std::string computeHash(const cv::Mat& image) {
-    cv::Mat grayscale;
-    cv::cvtColor(image, grayscale, cv::COLOR_BGR2GRAY);
-    cv::resize(grayscale, grayscale, cv::Size(8, 8));
-    
-    // 计算图像的平均灰度值
-    cv::Scalar meanVal = cv::mean(grayscale);
-    double average = meanVal[0];
-    
-    // 将图像转换为二值图像
-    cv::Mat binaryImage;
-    cv::threshold(grayscale, binaryImage, average, 255, cv::THRESH_BINARY);
-    
-    // 计算图像的哈希值
-    std::string hash;
-    for (int i = 0; i < binaryImage.rows; i++) {
-        for (int j = 0; j < binaryImage.cols; j++) {
-            uchar pixel = binaryImage.at<uchar>(i, j);
-            hash += (pixel > average ? "1" : "0");
-        }
-    }
-    
-    return hash;
-}
-
 /// @brief  以图搜图
 /// @param targetImagePath 
 /// @param queryImagePaths 
@@ -297,31 +262,170 @@ SimilarityResult imageSearchByPerceptualHash(const char* targetImagePath, const 
 }
 
 
+/// @brief 计算2各frame相似度
+/// @param frame1 
+/// @param frame2 
+/// @return 
+double calculateFrameSimilarity(cv::Mat frame1, cv::Mat frame2) {
+    cv::Mat grayFrame1, grayFrame2;
+
+    // 转换为灰度图像
+    if (frame1.channels() == 3) {
+        cv::cvtColor(frame1, grayFrame1, cv::COLOR_BGR2GRAY);
+    } else {
+        grayFrame1 = frame1.clone();
+    }
+    if (frame2.channels() == 3) {
+        cv::cvtColor(frame2, grayFrame2, cv::COLOR_BGR2GRAY);
+    } else {
+        grayFrame2 = frame2.clone();
+    }
+
+      // 调整图像尺寸为8x8
+    cv::resize(grayFrame1, grayFrame1, cv::Size(8, 8));
+    cv::resize(grayFrame2, grayFrame2, cv::Size(8, 8));
+
+    // 计算平均灰度值
+    double mean1 = cv::mean(grayFrame1)[0];
+    double mean2 = cv::mean(grayFrame2)[0];
+
+    // 计算平均哈希值
+    uchar hash1[64], hash2[64];
+    for (int i = 0; i < 8; i++) {
+        for (int j = 0; j < 8; j++) {
+            hash1[i * 8 + j] = (grayFrame1.at<uchar>(i, j) > mean1) ? 1 : 0;
+            hash2[i * 8 + j] = (grayFrame2.at<uchar>(i, j) > mean2) ? 1 : 0;
+        }
+    }
+
+    // 计算汉明距离
+    int distance = 0;
+    for (int i = 0; i < 64; i++) {
+        if (hash1[i] != hash2[i]) {
+            distance++;
+        }
+    }
+
+    // 计算相似度
+    double similarity = 1.0 - static_cast<double>(distance) / 64.0;
+
+    return similarity;
+}
+
+/// @brief 构建捕获视频帧的对象
+/// @param videoPath 
+/// @return 
+cv::VideoCapture createVideoCapture(const std::string& videoPath) {
+    cv::VideoCapture videoCapture;
+
+#if defined(__ANDROID__)
+    videoCapture = cv::VideoCapture(videoPath, cv::CAP_ANDROID);
+#else
+    videoCapture = cv::VideoCapture(videoPath);
+#endif
+    return videoCapture;
+}
 
 
+/// @brief 以视频搜视频
+/// @param originalVideoPath 
+/// @param videoPaths 
+/// @param videoCount 
+/// @return 
+SimilarityResult findSimilarVideos(const char* originalVideoPath, const char** videoPaths, int videoCount) {
+    SimilarityResult similarVideos;
+    similarVideos.length = 0;
+    similarVideos.imagePaths = nullptr;
+    similarVideos.similarities = nullptr;
 
+    // 打开原视频文件
+    cv::VideoCapture originalVideo = createVideoCapture(originalVideoPath);
+    if (!originalVideo.isOpened()) {
+        std::cerr << "Failed to open original video file." << std::endl;
+        return similarVideos;
+    }
 
+    // 获取原视频的帧率
+    double originalFPS = originalVideo.get(cv::CAP_PROP_FPS);
 
+    // 计算每1秒提取一帧的间隔帧数
+    int frameInterval = static_cast<int>(originalFPS) * 1;
+    int currentFrameCount = 0;
 
+    // 创建临时向量来存储相似视频路径和相似度
+    std::vector<const char*> similarPaths;
+    std::vector<double> similarScores;
 
+    // 读取原视频的关键帧
+    cv::Mat baseFrame;
+    originalVideo.read(baseFrame);
 
+    // 循环遍历视频路径数组
+    for (int i = 0; i < videoCount; ++i) {
+        const char* videoPath = videoPaths[i];
 
+        // 如果视频路径与原视频路径相同，则跳过该视频
+        if (strcmp(videoPath, originalVideoPath) == 0) {
+            continue;
+        }
 
+        // 打开当前视频文件
+        cv::VideoCapture currentVideo = createVideoCapture(videoPath);
+        if (!currentVideo.isOpened()) {
+            std::cerr << "Failed to open video file: " << videoPath << std::endl;
+            continue;
+        }
 
+        // 计算当前视频与原视频的相似度
+        double maxSimilarity = 0.0;
+        currentFrameCount = 0;
 
+        // 跳过指定间隔的帧数
+        while (currentFrameCount < frameInterval) {
+            currentVideo.grab();
+            currentFrameCount++;
+        }
 
+        // 循环遍历剩余的帧
+        cv::Mat frame;
+        while (currentVideo.read(frame)) {
+            // 计算当前帧与原视频关键帧的相似度得分
+            double similarity = calculateFrameSimilarity(baseFrame, frame);
+            if (similarity > maxSimilarity) {
+                maxSimilarity = similarity;
+            }
 
+            // 跳过指定间隔的帧数
+            for (int j = 0; j < frameInterval - 1; ++j) {
+                currentVideo.grab();
+                currentFrameCount++;
+            }
+        }
 
+        // 关闭当前视频文件
+        currentVideo.release();
 
+        // 如果相似度大于0.7，则将路径和相似度添加到临时向量中
+        if (maxSimilarity > 0.7) {
+            similarPaths.push_back(videoPath);
+            similarScores.push_back(maxSimilarity);
+        }
+    }
 
+    // 将临时向量中的数据复制到 SimilarityResult 结构体中
+    int numSimilarVideos = similarPaths.size();
+    if (numSimilarVideos > 0) {
+        similarVideos.length = numSimilarVideos;
+        similarVideos.imagePaths = new const char*[numSimilarVideos];
+        similarVideos.similarities = new double[numSimilarVideos];
 
+        for (int i = 0; i < numSimilarVideos; ++i) {
+            similarVideos.imagePaths[i] = similarPaths[i];
+            similarVideos.similarities[i] = similarScores[i];
+        }
+    }
 
-
-
-
-
-
-
-
+    return similarVideos;
+}
 
 
