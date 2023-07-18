@@ -33,6 +33,9 @@ ImageSimilarity compareImageSimilarityPhash(const char* imagePath1, const char* 
 // 以图搜图(感知哈希算法)
 SimilarityResult imageSearchByPerceptualHash(const char* targetImagePath, const char** queryImagePaths, int numQueryImages);
 
+// 比较2个视频相似度
+double calculateVideoSimilarity(const char* originUrl, const char* targetUrl);
+
 // 获取相似视频
 SimilarityResult findSimilarVideos(const char* originalVideoPath, const char** videoPaths, int videoCount);
 

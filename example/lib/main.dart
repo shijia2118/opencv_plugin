@@ -45,11 +45,6 @@ class _MyAppState extends State<MyApp> {
     print('>>>>>>>>similar===$result');
   }
 
-  Future getImageBlur({required String imageUrl}) async {
-    var result = await opencv.calculateImageBlur(imageUrl: imageUrl);
-    print('>>>>>>>>blur===$result');
-  }
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -63,6 +58,7 @@ class _MyAppState extends State<MyApp> {
             child: Column(
               children: [
                 FilledButton(onPressed: getLostData, child: const Text('选择图片')),
+                FilledButton(onPressed: getBlurImage, child: const Text('模糊图片')),
                 FilledButton(onPressed: getVideo, child: const Text('选择视频')),
               ],
             ),
@@ -77,11 +73,7 @@ class _MyAppState extends State<MyApp> {
     if (result) {
       final ImagePicker picker = ImagePicker();
       List<XFile>? files = await picker.pickMultiImage();
-      if (files.length == 1) {
-        for (int i = 0; i <= 10000; i++) {
-          await getImageBlur(imageUrl: files.first.path);
-        }
-      } else if (files.length == 2) {
+      if (files.length == 2) {
         String sourceUrl = files[0].path;
         String targetUrl = files[1].path;
         await getImage(sourceUrl: sourceUrl, targetUrl: targetUrl);
@@ -92,8 +84,7 @@ class _MyAppState extends State<MyApp> {
           paths.add(file.path);
         }
         DateTime startTime = DateTime.now();
-        // var result = await opencv.searchImageByPerceptualHash(imageUrl: sourceUrl, imageList: paths);
-        var result = await opencv.findSimilarImages2(imageUrl: sourceUrl, imageList: paths);
+        var result = await opencv.findSimilarImages(originUrl: sourceUrl, imageList: paths);
         DateTime endTime = DateTime.now();
 
         Duration difference = endTime.difference(startTime);
@@ -107,51 +98,23 @@ class _MyAppState extends State<MyApp> {
 
         for (var r in result) {
           print('>>>>>>>>>>>>原图>>>>>>$sourceUrl');
-          print('>>>>>>>>>value>>>>$r');
+          print('>>>>>>>>>相似图>>>>${r.url}');
+          print('>>>>>>>>>相似度>>>>${r.value}');
         }
       }
     }
   }
 
-  List<String> videoUrls = [];
-  Future<void> getVideo() async {
+  Future<void> getBlurImage() async {
     bool result = await PermissionUtils.localGallery(context);
     if (result) {
       final ImagePicker picker = ImagePicker();
-      List<XFile>? videos = await picker.pickMultipleMedia();
-      if (videos.length == 1) {
-        videoUrls.add(videos.first.path);
-        if (videoUrls.length >= 3) {
-          String sourceUrl = videos.first.path;
-          DateTime startTime = DateTime.now();
-          var result = await opencv.findSimilarVideos(videourl: sourceUrl, videoUrls: videoUrls);
-          DateTime endTime = DateTime.now();
-
-          Duration difference = endTime.difference(startTime);
-          int milliseconds = difference.inMilliseconds;
-          int seconds = 0;
-          if (milliseconds > 1000) {
-            seconds = (milliseconds / 1000).truncate();
-            milliseconds = milliseconds % 1000;
-          }
-          print('>>>>>>>>时间差>>>>>$seconds秒$milliseconds毫秒');
-          for (var r in result) {
-            print('>>>>>>>>>>>>原视频>>>>>>$sourceUrl');
-            print('>>>>>>>>url>>>>>${r.url}');
-            print('>>>>>>>>>value>>>>${r.value}');
-          }
-        }
-      } else if (videos.length == 2) {
-      } else if (videos.length > 2) {
-        String sourceUrl = videos.first.path;
-        List<String> paths = [];
-        for (var video in videos) {
-          paths.add(video.path);
-        }
+      List<XFile> files = await picker.pickMultiImage();
+      if (files.isNotEmpty) {
+        List<String> imageList = files.map((f) => f.path).toList();
         DateTime startTime = DateTime.now();
-        var result = await opencv.findSimilarVideos(videourl: sourceUrl, videoUrls: paths);
+        var blurImages = await opencv.calculateImageBlur(imageList: imageList);
         DateTime endTime = DateTime.now();
-
         Duration difference = endTime.difference(startTime);
         int milliseconds = difference.inMilliseconds;
         int seconds = 0;
@@ -160,11 +123,38 @@ class _MyAppState extends State<MyApp> {
           milliseconds = milliseconds % 1000;
         }
         print('>>>>>>>>时间差>>>>>$seconds秒$milliseconds毫秒');
-        for (var r in result) {
-          print('>>>>>>>>>>>>原视频>>>>>>$sourceUrl');
-          print('>>>>>>>>url>>>>>${r.url}');
-          print('>>>>>>>>>value>>>>${r.value}');
-        }
+        print('>>>>>>>>>>>>模糊图片长度==${blurImages.length}');
+      }
+    }
+  }
+
+  Future<void> getVideo() async {
+    bool result = await PermissionUtils.localGallery(context);
+    if (result) {
+      final ImagePicker picker = ImagePicker();
+      List<XFile>? videos = await picker.pickMultipleMedia();
+
+      String sourceUrl = videos.first.path;
+      List<String> paths = [];
+      for (var video in videos) {
+        paths.add(video.path);
+      }
+      DateTime startTime = DateTime.now();
+      var result = await opencv.findSimilarVideos(originUrl: paths.first, videoList: paths);
+      DateTime endTime = DateTime.now();
+
+      Duration difference = endTime.difference(startTime);
+      int milliseconds = difference.inMilliseconds;
+      int seconds = 0;
+      if (milliseconds > 1000) {
+        seconds = (milliseconds / 1000).truncate();
+        milliseconds = milliseconds % 1000;
+      }
+      print('>>>>>>>>时间差>>>>>$seconds秒$milliseconds毫秒');
+      for (var r in result) {
+        print('>>>>>>>>>>>>原视频>>>>>>$sourceUrl');
+        print('>>>>>>>>url>>>>>${r.url}');
+        print('>>>>>>>>>value>>>>${r.value}');
       }
     }
   }

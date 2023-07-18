@@ -312,6 +312,70 @@ double calculateFrameSimilarity(cv::Mat frame1, cv::Mat frame2) {
     return similarity;
 }
 
+/// @brief 峰值信噪比
+/// @param I1 
+/// @param I2 
+/// @return  一般的取值范围20~50
+double getPSNR(const Mat& I1, const Mat& I2) {
+    Mat s1;
+    absdiff(I1, I2, s1);       // |I1 - I2|
+    s1.convertTo(s1, CV_32F);  // cannot make a square on 8 bits
+    s1 = s1.mul(s1);           // |I1 - I2|^2
+    Scalar s = sum(s1);        // sum elements per channel
+    double sse = s.val[0] + s.val[1] + s.val[2]; // sum channels
+    if( sse <= 1e-10) // for small values return zero
+        return 0;
+    else
+    {
+        double mse  = sse / (double)(I1.channels() * I1.total());
+        double psnr = 10.0 * log10((255 * 255) / mse);
+        return psnr;
+    }
+}
+
+/// @brief SSIM算法
+/// @param i1 
+/// @param i2 
+/// @return 
+Scalar getMSSIM( const Mat& i1, const Mat& i2)
+{
+    const double C1 = 6.5025, C2 = 58.5225;
+    /***************************** INITS **********************************/
+    int d = CV_32F;
+    Mat I1, I2;
+    i1.convertTo(I1, d);            // cannot calculate on one byte large values
+    i2.convertTo(I2, d);
+    Mat I2_2   = I2.mul(I2);        // I2^2
+    Mat I1_2   = I1.mul(I1);        // I1^2
+    Mat I1_I2  = I1.mul(I2);        // I1 * I2
+    /*************************** END INITS **********************************/
+    Mat mu1, mu2;                   // PRELIMINARY COMPUTING
+    GaussianBlur(I1, mu1, Size(11, 11), 1.5);
+    GaussianBlur(I2, mu2, Size(11, 11), 1.5);
+    Mat mu1_2   =   mu1.mul(mu1);
+    Mat mu2_2   =   mu2.mul(mu2);
+    Mat mu1_mu2 =   mu1.mul(mu2);
+    Mat sigma1_2, sigma2_2, sigma12;
+    GaussianBlur(I1_2, sigma1_2, Size(11, 11), 1.5);
+    sigma1_2 -= mu1_2;
+    GaussianBlur(I2_2, sigma2_2, Size(11, 11), 1.5);
+    sigma2_2 -= mu2_2;
+    GaussianBlur(I1_I2, sigma12, Size(11, 11), 1.5);
+    sigma12 -= mu1_mu2;
+    Mat t1, t2, t3;
+    t1 = 2 * mu1_mu2 + C1;
+    t2 = 2 * sigma12 + C2;
+    t3 = t1.mul(t2);                 // t3 = ((2*mu1_mu2 + C1).*(2*sigma12 + C2))
+    t1 = mu1_2 + mu2_2 + C1;
+    t2 = sigma1_2 + sigma2_2 + C2;
+    t1 = t1.mul(t2);                 // t1 =((mu1_2 + mu2_2 + C1).*(sigma1_2 + sigma2_2 + C2))
+    Mat ssim_map;
+    divide(t3, t1, ssim_map);        // ssim_map =  t3./t1;
+    Scalar mssim = mean(ssim_map);   // mssim = average of ssim map
+    return mssim;
+}
+
+
 /// @brief 构建捕获视频帧的对象
 /// @param videoPath 
 /// @return 
@@ -325,6 +389,47 @@ cv::VideoCapture createVideoCapture(const std::string& videoPath) {
 #endif
     return videoCapture;
 }
+
+/// @brief 比较两个视频的相似度
+/// @param originUrl 原视频
+/// @param targetUrl 待比较视频
+/// @return 
+double calculateVideoSimilarity(const char* originUrl, const char* targetUrl) {
+    cv::VideoCapture originCapture = createVideoCapture(originUrl);
+    cv::VideoCapture targetCapture = createVideoCapture(targetUrl);
+
+    if (!originCapture.isOpened() || !targetCapture.isOpened()) {
+        std::cerr << "Failed to open video file(s)." << std::endl;
+        return 0.0;
+    }
+
+    cv::Mat originFrame, targetFrame;
+    int frameRate = static_cast<int>(originCapture.get(cv::CAP_PROP_FPS));
+    int frameCount = 0;
+    int similarityCount = 0;
+
+    while (originCapture.read(originFrame) && targetCapture.read(targetFrame)) {
+        if (originFrame.empty() || targetFrame.empty())
+            break;
+
+        frameCount++;
+
+        if (frameCount % frameRate == 0) {
+            double similarity = calculateFrameSimilarity(originFrame,targetFrame);
+            // double similarity = getPSNR(originFrame,targetFrame);
+            // double similarity = getMSSIM(originFrame,targetFrame)[0];
+            if(similarity > 0.5){
+                similarityCount++;
+            }
+        }
+    }
+
+    originCapture.release();
+    targetCapture.release();
+
+    return static_cast<double>(similarityCount) / static_cast<double>(frameCount / frameRate);
+}
+
 
 
 /// @brief 以视频搜视频

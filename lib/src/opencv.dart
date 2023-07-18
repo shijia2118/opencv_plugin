@@ -4,6 +4,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:ffi/ffi.dart';
+import 'package:flutter/foundation.dart';
 import 'package:opencv_plugin/opencv_bindings.dart';
 
 const String _libName = "opencv_plugin";
@@ -104,78 +105,68 @@ Future<double> compareImageSimilarityPhash({required String sourceUrl, required 
 }
 
 ///计算图片模糊度
-Future<double> calculateImageBlur({required String imageUrl}) async {
-  Completer<double> completer = Completer<double>();
-  ReceivePort receivePort = ReceivePort();
+Future<List<MediaDetectionResult>> calculateImageBlur({required List<String> imageList}) async {
+  final results = <MediaDetectionResult>[];
 
-  double onResult() {
-    Pointer<Utf8> url = imageUrl.toNativeUtf8();
-    double blurScore = _bindings.calculateImageBlur(url.cast());
-    return blurScore;
+  // 定义计算相似度的函数
+  Future<MediaDetectionResult?> getImageBlur(String url) async {
+    final imagePath = url.toNativeUtf8();
+    double blurValue = _bindings.calculateImageBlur(imagePath.cast());
+    if (blurValue < 10000) {
+      return MediaDetectionResult(url: url, value: blurValue);
+    }
+    return null;
   }
 
-  // 启动Isolate并传递参数
-  Map<String, dynamic> param = {
-    'sendPort': receivePort.sendPort,
-    'onResult': onResult(),
-  };
-  Isolate.spawn(isolateFunction, param);
-
-  // 监听receivePort并处理来自Isolate的消息
-  receivePort.listen((dynamic message) {
-    if (message is double) {
-      // 收到Isolate返回的结果，完成Future
-      completer.complete(message);
+  // 使用compute函数执行并发操作
+  final futures = imageList.map((url) => compute(getImageBlur, url)).toList();
+  final groups = await Future.wait(futures);
+  for (var group in groups) {
+    if (group != null) {
+      results.add(group);
     }
-  });
-  return completer.future;
+  }
+
+  return results;
 }
 
 /// 以图搜图
-Future<List<SimilarImageGroup>> findSimilarImages({required String imageUrl, required List<String> imageList}) async {
-  Completer<List<SimilarImageGroup>> completer = Completer<List<SimilarImageGroup>>();
-  ReceivePort receivePort = ReceivePort();
+/// 通过compute实现
+Future<List<MediaDetectionResult>> findSimilarImages(
+    {required String originUrl, required List<String> imageList}) async {
+  final results = <MediaDetectionResult>[];
 
-  Future<List<SimilarImageGroup>> onResult() async {
-    List<SimilarImageGroup> images = [];
-    for (var url in imageList) {
-      if (url != imageUrl) {
-        // double similarValue = await compareImageSimilarityHist(sourceUrl: imageUrl, targetUrl: url);
-        // double similarValue = await compareImageSimilarityPhash(sourceUrl: imageUrl, targetUrl: url);
-        double similarValue = await compareImageSimilarityPhash(sourceUrl: imageUrl, targetUrl: url);
-
-        if (similarValue > 0.9) {
-          images.add(SimilarImageGroup(url: url, value: similarValue));
-        }
-      }
+  // 定义计算相似度的函数
+  Future<MediaDetectionResult?> compareImage(String url) async {
+    final imagePath1 = originUrl.toNativeUtf8();
+    final imagePath2 = url.toNativeUtf8();
+    double similarValue = _bindings.compareImageSimilarityPhash(imagePath1.cast(), imagePath2.cast()).similarity;
+    if (similarValue > 0.8) {
+      return MediaDetectionResult(url: url, value: similarValue);
     }
-    return images;
+    return null;
   }
 
-  // 启动Isolate并传递参数
-  Map<String, dynamic> param = {
-    'sendPort': receivePort.sendPort,
-    'onResult': await onResult(),
-  };
-  await Isolate.spawn(isolateFunction, param);
-
-  // 监听receivePort并处理来自Isolate的消息
-  receivePort.listen((dynamic message) {
-    if (message is List<SimilarImageGroup>) {
-      // 收到Isolate返回的结果，完成Future
-      completer.complete(message);
+  // 使用compute函数执行并发操作
+  final futures = imageList.map((url) => compute(compareImage, url)).toList();
+  final groups = await Future.wait(futures);
+  for (var group in groups) {
+    if (group != null && group.url != originUrl) {
+      results.add(group);
     }
-  });
-  return completer.future;
+  }
+
+  return results;
 }
 
 /// 以图搜图
-Future<List<SimilarImageGroup>> searchImageByPerceptualHash(
+/// 通过c++实现
+Future<List<MediaDetectionResult>> findSimilarImages2(
     {required String imageUrl, required List<String> imageList}) async {
-  Completer<List<SimilarImageGroup>> completer = Completer<List<SimilarImageGroup>>();
+  Completer<List<MediaDetectionResult>> completer = Completer<List<MediaDetectionResult>>();
   ReceivePort receivePort = ReceivePort();
 
-  List<SimilarImageGroup> onResult() {
+  List<MediaDetectionResult> onResult() {
     Pointer<Utf8> originUrl = imageUrl.toNativeUtf8();
     Pointer<Pointer<Utf8>> imagePaths = convertStringListToPointer(imageList);
     SimilarityResult result =
@@ -192,7 +183,7 @@ Future<List<SimilarImageGroup>> searchImageByPerceptualHash(
 
   // 监听receivePort并处理来自Isolate的消息
   receivePort.listen((dynamic message) {
-    if (message is List<SimilarImageGroup>) {
+    if (message is List<MediaDetectionResult>) {
       // 收到Isolate返回的结果，完成Future
       completer.complete(message);
     }
@@ -209,7 +200,37 @@ void isolateFunction(dynamic parameters) {
 }
 
 /// 以视频搜视频
-Future<List<SimilarImageGroup>> findSimilarVideos({required String videourl, required List<String> videoUrls}) async {
+/// 通过compute实现
+Future<List<MediaDetectionResult>> findSimilarVideos(
+    {required String originUrl, required List<String> videoList}) async {
+  final results = <MediaDetectionResult>[];
+
+  // 定义计算相似度的函数
+  Future<MediaDetectionResult?> compareVideo(String url) async {
+    final videoPath1 = originUrl.toNativeUtf8();
+    final videoPath2 = url.toNativeUtf8();
+    double similarValue = _bindings.calculateVideoSimilarity(videoPath1.cast(), videoPath2.cast());
+    if (similarValue >= 0.8) {
+      return MediaDetectionResult(url: url, value: similarValue);
+    }
+    return null;
+  }
+
+  // 使用compute函数执行并发操作
+  final futures = videoList.map((url) => compute(compareVideo, url)).toList();
+  final groups = await Future.wait(futures);
+  for (var group in groups) {
+    if (group != null && group.url != originUrl) {
+      results.add(group);
+    }
+  }
+
+  return results;
+}
+
+/// 以视频搜视频
+Future<List<MediaDetectionResult>> findSimilarVideos2(
+    {required String videourl, required List<String> videoUrls}) async {
   Pointer<Utf8> originUrl = videourl.toNativeUtf8();
   Pointer<Pointer<Utf8>> targetUrls = convertStringListToPointer(videoUrls);
   SimilarityResult result =
@@ -217,8 +238,8 @@ Future<List<SimilarImageGroup>> findSimilarVideos({required String videourl, req
   return pointerToStringList(result);
 }
 
-List<SimilarImageGroup> pointerToStringList(SimilarityResult similarityResult) {
-  List<SimilarImageGroup> list = [];
+List<MediaDetectionResult> pointerToStringList(SimilarityResult similarityResult) {
+  List<MediaDetectionResult> list = [];
   int length = similarityResult.length;
   if (length < 1) return list;
   var similarImagePaths = similarityResult.imagePaths;
@@ -227,7 +248,7 @@ List<SimilarImageGroup> pointerToStringList(SimilarityResult similarityResult) {
     Pointer<Char> pointerChar = similarImagePaths.elementAt(i).value;
     double similarImageValue = similarImageValues.elementAt(i).value;
     String similarImagePath = convertPointerToString(pointerChar);
-    SimilarImageGroup imageGroup = SimilarImageGroup(url: similarImagePath, value: similarImageValue);
+    MediaDetectionResult imageGroup = MediaDetectionResult(url: similarImagePath, value: similarImageValue);
     list.add(imageGroup);
   }
   return list;
@@ -255,8 +276,8 @@ Pointer<Pointer<Utf8>> convertStringListToPointer(List<String> stringList) {
   return stringPointerList;
 }
 
-class SimilarImageGroup {
+class MediaDetectionResult {
   final String url;
   final double value;
-  SimilarImageGroup({required this.url, required this.value});
+  MediaDetectionResult({required this.url, required this.value});
 }

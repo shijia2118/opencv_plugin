@@ -14,13 +14,17 @@ import 'dart:ffi' as ffi;
 ///
 class OpencvBindings {
   /// Holds the symbol lookup function.
-  final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) _lookup;
+  final ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
+      _lookup;
 
   /// The symbols are looked up in [dynamicLibrary].
-  OpencvBindings(ffi.DynamicLibrary dynamicLibrary) : _lookup = dynamicLibrary.lookup;
+  OpencvBindings(ffi.DynamicLibrary dynamicLibrary)
+      : _lookup = dynamicLibrary.lookup;
 
   /// The symbols are looked up with [lookup].
-  OpencvBindings.fromLookup(ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName) lookup)
+  OpencvBindings.fromLookup(
+      ffi.Pointer<T> Function<T extends ffi.NativeType>(String symbolName)
+          lookup)
       : _lookup = lookup;
 
   /// 比较图片相似度(直方图)
@@ -34,11 +38,14 @@ class OpencvBindings {
     );
   }
 
-  late final _compareImageSimilarityHistPtr =
-      _lookup<ffi.NativeFunction<ImageSimilarity Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>>(
-          'compareImageSimilarityHist');
-  late final _compareImageSimilarityHist = _compareImageSimilarityHistPtr
-      .asFunction<ImageSimilarity Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
+  late final _compareImageSimilarityHistPtr = _lookup<
+      ffi.NativeFunction<
+          ImageSimilarity Function(ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>)>>('compareImageSimilarityHist');
+  late final _compareImageSimilarityHist =
+      _compareImageSimilarityHistPtr.asFunction<
+          ImageSimilarity Function(
+              ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   /// 计算图像模糊度的函数
   double calculateImageBlur(
@@ -50,8 +57,10 @@ class OpencvBindings {
   }
 
   late final _calculateImageBlurPtr =
-      _lookup<ffi.NativeFunction<ffi.Double Function(ffi.Pointer<ffi.Char>)>>('calculateImageBlur');
-  late final _calculateImageBlur = _calculateImageBlurPtr.asFunction<double Function(ffi.Pointer<ffi.Char>)>();
+      _lookup<ffi.NativeFunction<ffi.Double Function(ffi.Pointer<ffi.Char>)>>(
+          'calculateImageBlur');
+  late final _calculateImageBlur = _calculateImageBlurPtr
+      .asFunction<double Function(ffi.Pointer<ffi.Char>)>();
 
   /// 比较图片相似度(SSIM)
   ImageSimilarity compareImageSimilaritySSIM(
@@ -64,11 +73,14 @@ class OpencvBindings {
     );
   }
 
-  late final _compareImageSimilaritySSIMPtr =
-      _lookup<ffi.NativeFunction<ImageSimilarity Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>>(
-          'compareImageSimilaritySSIM');
-  late final _compareImageSimilaritySSIM = _compareImageSimilaritySSIMPtr
-      .asFunction<ImageSimilarity Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
+  late final _compareImageSimilaritySSIMPtr = _lookup<
+      ffi.NativeFunction<
+          ImageSimilarity Function(ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>)>>('compareImageSimilaritySSIM');
+  late final _compareImageSimilaritySSIM =
+      _compareImageSimilaritySSIMPtr.asFunction<
+          ImageSimilarity Function(
+              ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   /// 比较图片相似度(哈希感知)
   ImageSimilarity compareImageSimilarityPhash(
@@ -81,11 +93,14 @@ class OpencvBindings {
     );
   }
 
-  late final _compareImageSimilarityPhashPtr =
-      _lookup<ffi.NativeFunction<ImageSimilarity Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>>(
-          'compareImageSimilarityPhash');
-  late final _compareImageSimilarityPhash = _compareImageSimilarityPhashPtr
-      .asFunction<ImageSimilarity Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
+  late final _compareImageSimilarityPhashPtr = _lookup<
+      ffi.NativeFunction<
+          ImageSimilarity Function(ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>)>>('compareImageSimilarityPhash');
+  late final _compareImageSimilarityPhash =
+      _compareImageSimilarityPhashPtr.asFunction<
+          ImageSimilarity Function(
+              ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   /// 以图搜图(感知哈希算法)
   SimilarityResult imageSearchByPerceptualHash(
@@ -103,9 +118,32 @@ class OpencvBindings {
   late final _imageSearchByPerceptualHashPtr = _lookup<
       ffi.NativeFunction<
           SimilarityResult Function(
-              ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>, ffi.Int)>>('imageSearchByPerceptualHash');
-  late final _imageSearchByPerceptualHash = _imageSearchByPerceptualHashPtr
-      .asFunction<SimilarityResult Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Pointer<ffi.Char>>,
+              ffi.Int)>>('imageSearchByPerceptualHash');
+  late final _imageSearchByPerceptualHash =
+      _imageSearchByPerceptualHashPtr.asFunction<
+          SimilarityResult Function(ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
+
+  /// 比较2个视频相似度
+  double calculateVideoSimilarity(
+    ffi.Pointer<ffi.Char> originUrl,
+    ffi.Pointer<ffi.Char> targetUrl,
+  ) {
+    return _calculateVideoSimilarity(
+      originUrl,
+      targetUrl,
+    );
+  }
+
+  late final _calculateVideoSimilarityPtr = _lookup<
+      ffi.NativeFunction<
+          ffi.Double Function(ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Char>)>>('calculateVideoSimilarity');
+  late final _calculateVideoSimilarity =
+      _calculateVideoSimilarityPtr.asFunction<
+          double Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Char>)>();
 
   /// 获取相似视频
   SimilarityResult findSimilarVideos(
@@ -123,9 +161,12 @@ class OpencvBindings {
   late final _findSimilarVideosPtr = _lookup<
       ffi.NativeFunction<
           SimilarityResult Function(
-              ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>, ffi.Int)>>('findSimilarVideos');
-  late final _findSimilarVideos = _findSimilarVideosPtr
-      .asFunction<SimilarityResult Function(ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
+              ffi.Pointer<ffi.Char>,
+              ffi.Pointer<ffi.Pointer<ffi.Char>>,
+              ffi.Int)>>('findSimilarVideos');
+  late final _findSimilarVideos = _findSimilarVideosPtr.asFunction<
+      SimilarityResult Function(
+          ffi.Pointer<ffi.Char>, ffi.Pointer<ffi.Pointer<ffi.Char>>, int)>();
 }
 
 /// 定义用于存储相似度数据的结构体
