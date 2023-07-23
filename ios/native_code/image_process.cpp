@@ -6,6 +6,7 @@
 #include <opencv2/imgcodecs.hpp>
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <cmath>
 
 using namespace cv;
 using namespace std;
@@ -91,38 +92,7 @@ std::string calculatePerceptualHash(const char* imagePath){
 /// @param imagePath1 
 /// @param imagePath2 
 /// @return 
-ImageSimilarity compareImageSimilarityPhash(const char* imagePath1, const char* imagePath2) {
-    ImageSimilarity similarityData;
-
-    // 计算感知哈希值
-    std::string hash1 = calculatePerceptualHash(imagePath1);
-    std::string hash2 = calculatePerceptualHash(imagePath2);
-
-    if(hash1.empty() || hash2.empty()){
-        //遇到hash值为""
-        similarityData.similarity = 0.0;
-        return similarityData;
-    }
-
-
-    // 比较哈希值并计算相似度
-    int matchingBits = 0;
-    for (int i = 0; i < hash1.length(); i++){
-        if (hash1[i] == hash2[i]) {
-            matchingBits++;
-        }
-    }
-
-    double similarity = static_cast<double>(matchingBits) / hash1.length();
-    similarityData.similarity = similarity;
-    return similarityData;
-}
-
-/// @brief  图片相似度（感知哈希，同上。但他直接返回了double）
-/// @param imagePath1 
-/// @param imagePath2 
-/// @return 
-double compareImageSimilarityPhash2(const char* imagePath1, const char* imagePath2) {
+double compareImageSimilarityPhash(const char* imagePath1, const char* imagePath2) {
     ImageSimilarity similarityData;
 
     // 计算感知哈希值
@@ -146,9 +116,6 @@ double compareImageSimilarityPhash2(const char* imagePath1, const char* imagePat
     double similarity = static_cast<double>(matchingBits) / hash1.length();
     return similarity;
 }
-
-
-
 
 /// @brief 图片相似度(SSIM算法)
 /// @param imagePath1 
@@ -212,7 +179,7 @@ ImageSimilarity compareImageSimilaritySSIM(const char* image1Path, const char* i
 }
 
 
-/// @brief 无参考图片时，图像清晰度
+/// @brief 图像清晰度
 /// 边缘检测法
 /// @param image 
 double calculateImageBlur(const char* imagePath) {
@@ -234,32 +201,6 @@ double calculateImageBlur(const char* imagePath) {
     return static_cast<double>(nonZero);
 }
 
-/// @brief  以图搜图
-/// @param targetImagePath 
-/// @param queryImagePaths 
-/// @param numQueryImages 
-/// @return 
-SimilarityResult imageSearchByPerceptualHash(const char* targetImagePath, const char** queryImagePaths, int numQueryImages) {
-    SimilarityResult results;
-    results.imagePaths = new const char*[numQueryImages];
-    results.similarities = new double[numQueryImages];
-    results.length = 0;
-
-    // 比较目标图像与查询图像的相似度
-    for (int i = 1; i < numQueryImages; i++) {
-        const char* queryImagePath = queryImagePaths[i];
-        double similarity = compareImageSimilarityPhash2(targetImagePath, queryImagePath);
-        
-        // 仅在相似度大于0.9时记录结果
-        if (similarity > 0.9) {
-            results.imagePaths[results.length] = queryImagePath;
-            results.similarities[results.length] = similarity;
-            results.length++;
-        }
-    }
-
-    return results;
-}
 
 
 /// @brief 计算2各frame相似度
@@ -390,147 +331,164 @@ cv::VideoCapture createVideoCapture(const std::string& videoPath) {
     return videoCapture;
 }
 
-/// @brief 比较两个视频的相似度
-/// @param originUrl 原视频
-/// @param targetUrl 待比较视频
-/// @return 
-double calculateVideoSimilarity(const char* originUrl, const char* targetUrl) {
-    cv::VideoCapture originCapture = createVideoCapture(originUrl);
-    cv::VideoCapture targetCapture = createVideoCapture(targetUrl);
 
-    if (!originCapture.isOpened() || !targetCapture.isOpened()) {
-        std::cerr << "Failed to open video file(s)." << std::endl;
-        return 0.0;
+
+
+
+/// @brief 图片分类(Kmeans)
+/// @param imagePaths 
+/// @param numImages 
+/// @return 
+int* clusterImages(const char** imagePaths, int numImages, int K) {
+    // 读取图像并将其转换为特征向量
+    std::vector<cv::Mat> images;
+    for (int i = 0; i < numImages; ++i) {
+        std::string path = imagePaths[i];
+        cv::Mat image = cv::imread(path);
+        if (image.empty()) {
+            std::cerr << "Failed to read image: " << path << std::endl;
+            continue;
+        }
+        cv::resize(image, image, cv::Size(64, 64));
+        cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
+        image = image.reshape(1, 1);
+        images.push_back(image);
     }
 
-    cv::Mat originFrame, targetFrame;
-    int frameRate = static_cast<int>(originCapture.get(cv::CAP_PROP_FPS));
+    // 将所有图像的特征向量堆叠在一起
+    cv::Mat data = cv::Mat::zeros(images.size(), images[0].cols, CV_32F);
+    for (int i = 0; i < images.size(); ++i) {
+        images[i].copyTo(data.row(i));
+    }
+
+    // 使用kmeans算法对图像进行聚类
+    cv::Mat labels;
+    cv::kmeans(data, K, labels, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0), 3, cv::KMEANS_PP_CENTERS);
+
+    // 将聚类结果转换为标签数组并返回
+    int* result = new int[labels.rows];
+    for (int i = 0; i < labels.rows; ++i) {
+        result[i] = labels.at<int>(i);
+    }
+    return result;
+}
+
+
+/// @brief 视频特征值(直方图)
+/// @param videoPath 
+/// @return 
+cv::Mat extractVideoFeatures(const char* videoPath) {
+    cv::VideoCapture cap = createVideoCapture(videoPath);
+    if (!cap.isOpened()) {
+        std::cerr << "Error opening video file" << std::endl;
+        return cv::Mat();
+    }
+
+    double fps = cap.get(cv::CAP_PROP_FPS);
+    int frameInterval = static_cast<int>(fps) ;
+
+    std::vector<cv::Mat> histograms;
+    cv::Mat frame;
     int frameCount = 0;
-    int similarityCount = 0;
+    while (cap.read(frame)) {
+        if (frameCount % frameInterval == 0) {
+            cv::Mat hsv;
+            cv::cvtColor(frame, hsv, cv::COLOR_BGR2HSV);
 
-    while (originCapture.read(originFrame) && targetCapture.read(targetFrame)) {
-        if (originFrame.empty() || targetFrame.empty())
-            break;
+            int h_bins = 50, s_bins = 60;
+            int histSize[] = { h_bins, s_bins };
 
+            float h_ranges[] = { 0, 180 };
+            float s_ranges[] = { 0, 256 };
+            const float* ranges[] = { h_ranges, s_ranges };
+
+            int channels[] = { 0, 1 };
+
+            cv::Mat hist;
+            cv::calcHist(&hsv, 1, channels, cv::Mat(), hist, 2, histSize, ranges, true, false);
+            cv::normalize(hist, hist, 0, 1, cv::NORM_MINMAX, -1, cv::Mat());
+
+            histograms.push_back(hist);
+        }
         frameCount++;
-
-        if (frameCount % frameRate == 0) {
-            double similarity = calculateFrameSimilarity(originFrame,targetFrame);
-            // double similarity = getPSNR(originFrame,targetFrame);
-            // double similarity = getMSSIM(originFrame,targetFrame)[0];
-            if(similarity > 0.5){
-                similarityCount++;
-            }
-        }
     }
 
-    originCapture.release();
-    targetCapture.release();
-
-    return static_cast<double>(similarityCount) / static_cast<double>(frameCount / frameRate);
+    cv::Mat result;
+    cv::Mat histResult;
+    for (const auto& hist : histograms) {
+        result.push_back(hist);
+    }
+    cv::resize(result, histResult, cv::Size(256, 1), 0, 0, cv::INTER_LINEAR);
+    return histResult;
 }
 
 
-
-/// @brief 以视频搜视频
-/// @param originalVideoPath 
-/// @param videoPaths 
-/// @param videoCount 
+/// @brief 比较2个视频的相似度
+/// @param videoPath1 
+/// @param videoPath2 
 /// @return 
-SimilarityResult findSimilarVideos(const char* originalVideoPath, const char** videoPaths, int videoCount) {
-    SimilarityResult similarVideos;
-    similarVideos.length = 0;
-    similarVideos.imagePaths = nullptr;
-    similarVideos.similarities = nullptr;
+double compareVideoSimilarity(const char* videoPath1, const char* videoPath2) {
+    cv::Mat hist1 = extractVideoFeatures(videoPath1);
+    cv::Mat hist2 = extractVideoFeatures(videoPath2);
 
-    // 打开原视频文件
-    cv::VideoCapture originalVideo = createVideoCapture(originalVideoPath);
-    if (!originalVideo.isOpened()) {
-        std::cerr << "Failed to open original video file." << std::endl;
-        return similarVideos;
-    }
-
-    // 获取原视频的帧率
-    double originalFPS = originalVideo.get(cv::CAP_PROP_FPS);
-
-    // 计算每1秒提取一帧的间隔帧数
-    int frameInterval = static_cast<int>(originalFPS) * 1;
-    int currentFrameCount = 0;
-
-    // 创建临时向量来存储相似视频路径和相似度
-    std::vector<const char*> similarPaths;
-    std::vector<double> similarScores;
-
-    // 读取原视频的关键帧
-    cv::Mat baseFrame;
-    originalVideo.read(baseFrame);
-
-    // 循环遍历视频路径数组
-    for (int i = 0; i < videoCount; ++i) {
-        const char* videoPath = videoPaths[i];
-
-        // 如果视频路径与原视频路径相同，则跳过该视频
-        if (strcmp(videoPath, originalVideoPath) == 0) {
-            continue;
-        }
-
-        // 打开当前视频文件
-        cv::VideoCapture currentVideo = createVideoCapture(videoPath);
-        if (!currentVideo.isOpened()) {
-            std::cerr << "Failed to open video file: " << videoPath << std::endl;
-            continue;
-        }
-
-        // 计算当前视频与原视频的相似度
-        double maxSimilarity = 0.0;
-        currentFrameCount = 0;
-
-        // 跳过指定间隔的帧数
-        while (currentFrameCount < frameInterval) {
-            currentVideo.grab();
-            currentFrameCount++;
-        }
-
-        // 循环遍历剩余的帧
-        cv::Mat frame;
-        while (currentVideo.read(frame)) {
-            // 计算当前帧与原视频关键帧的相似度得分
-            double similarity = calculateFrameSimilarity(baseFrame, frame);
-            if (similarity > maxSimilarity) {
-                maxSimilarity = similarity;
-            }
-
-            // 跳过指定间隔的帧数
-            for (int j = 0; j < frameInterval - 1; ++j) {
-                currentVideo.grab();
-                currentFrameCount++;
-            }
-        }
-
-        // 关闭当前视频文件
-        currentVideo.release();
-
-        // 如果相似度大于0.7，则将路径和相似度添加到临时向量中
-        if (maxSimilarity > 0.7) {
-            similarPaths.push_back(videoPath);
-            similarScores.push_back(maxSimilarity);
-        }
-    }
-
-    // 将临时向量中的数据复制到 SimilarityResult 结构体中
-    int numSimilarVideos = similarPaths.size();
-    if (numSimilarVideos > 0) {
-        similarVideos.length = numSimilarVideos;
-        similarVideos.imagePaths = new const char*[numSimilarVideos];
-        similarVideos.similarities = new double[numSimilarVideos];
-
-        for (int i = 0; i < numSimilarVideos; ++i) {
-            similarVideos.imagePaths[i] = similarPaths[i];
-            similarVideos.similarities[i] = similarScores[i];
-        }
-    }
-
-    return similarVideos;
+    double similarity = cv::compareHist(hist1, hist2, cv::HISTCMP_CORREL);
+    return similarity;
 }
+
+class ParallelExtractFeatures : public cv::ParallelLoopBody {
+public:
+    ParallelExtractFeatures(const char** videoPaths, int numVideos, std::vector<cv::Mat>& features)
+        : videoPaths_(videoPaths), numVideos_(numVideos), features_(features) {}
+
+    virtual void operator()(const cv::Range& range) const {
+        for (int i = range.start; i < range.end; i++) {
+            const char* videoPath(videoPaths_[i]);
+            cv::Mat hist = extractVideoFeatures(videoPath);
+            features_[i] = hist;
+        }
+    }
+
+private:
+    const char** videoPaths_;
+    int numVideos_;
+    std::vector<cv::Mat>& features_;
+};
+
+
+/// @brief 视频分类(Kmeans)
+/// @param videoPaths 
+/// @param numVideos 
+/// @param K
+/// @return 
+int* clusterVideos(const char** videoPaths, int numVideos, int K) {
+    // 提取视频特征向量
+    std::vector<cv::Mat> features(numVideos);
+    cv::parallel_for_(cv::Range(0, numVideos), ParallelExtractFeatures(videoPaths, numVideos, features));
+
+    // 转换数据类型
+    cv::Mat featuresMat;
+    for (int i = 0; i < numVideos; i++) {
+        featuresMat.push_back(features[i]);
+    }
+    featuresMat.convertTo(featuresMat, CV_32F);
+
+    // 运行kmeans聚类算法
+    cv::Mat labels, centers;
+    cv::kmeans(featuresMat, K, labels, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 5, 1.0), 3, cv::KMEANS_PP_CENTERS, centers);
+
+     // 将聚类结果存储在动态分配的数组中
+    int* result = new int[numVideos];
+    for (int i = 0; i < labels.rows; i++) {
+        result[i] = labels.at<int>(i);
+    }
+
+    return result;
+}
+
+
+
+
+
+
 
 

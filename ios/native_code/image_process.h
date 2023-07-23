@@ -18,27 +18,29 @@ typedef struct {
 } SimilarityResult;
 
 
-// 比较图片相似度(直方图)
-ImageSimilarity compareImageSimilarityHist(const char* image1Path, const char* image2Path);
-
 // 计算图像模糊度的函数
 double calculateImageBlur(const char* imagePath);
 
-// 比较图片相似度(SSIM)
-ImageSimilarity compareImageSimilaritySSIM(const char* imagePath1, const char* imagePath2);
-
 // 比较图片相似度(哈希感知)
-ImageSimilarity compareImageSimilarityPhash(const char* imagePath1, const char* imagePath2);
+double compareImageSimilarityPhash(const char* imagePath1, const char* imagePath2);
 
 // 以图搜图(感知哈希算法)
 SimilarityResult imageSearchByPerceptualHash(const char* targetImagePath, const char** queryImagePaths, int numQueryImages);
 
-// 比较2个视频相似度
-double calculateVideoSimilarity(const char* originUrl, const char* targetUrl);
-
 // 获取相似视频
 SimilarityResult findSimilarVideos(const char* originalVideoPath, const char** videoPaths, int videoCount);
 
+// 图片分类(聚类)
+int* clusterImages(const char** imagePaths, int numImages,int K);
+
+// 比较2个视频相似度
+double compareVideoSimilarity(const char* videoPath1, const char* videoPath2);
+
+// 对视频进行聚类
+int* clusterVideos(const char** videoPaths, int numVideos, int K);
+
+// 比较2个视频相似度
+double compareVideoSimilarity(const char* videoPath1, const char* videoPath2);
 
 #ifdef __cplusplus
     

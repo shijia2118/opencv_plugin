@@ -13,68 +13,6 @@ final DynamicLibrary _dylib = Platform.isAndroid ? DynamicLibrary.open('lib$_lib
 
 final OpencvBindings _bindings = OpencvBindings(_dylib);
 
-///获取图片相似度(直方图)
-Future<double> compareImageSimilarityHist({required String sourceUrl, required String targetUrl}) async {
-  Completer<double> completer = Completer<double>();
-  ReceivePort receivePort = ReceivePort();
-
-  double onResult() {
-    final imagePath1 = sourceUrl.toNativeUtf8();
-    final imagePath2 = targetUrl.toNativeUtf8();
-    double result = _bindings.compareImageSimilarityHist(imagePath1.cast(), imagePath2.cast()).similarity;
-    return result;
-  }
-
-  // 启动Isolate并传递参数
-  Map<String, dynamic> param = {
-    'sendPort': receivePort.sendPort,
-    'onResult': onResult(),
-  };
-  Isolate.spawn(isolateFunction, param);
-
-  // 监听receivePort并处理来自Isolate的消息
-  receivePort.listen((dynamic message) {
-    if (message is double) {
-      // 收到Isolate返回的结果，完成Future
-      completer.complete(message);
-    }
-  });
-  return completer.future;
-}
-
-///获取图片相似度(SSIM)
-Future<double> compareImageSimilaritySSIM({required String sourceUrl, required String targetUrl}) async {
-  Completer<double> completer = Completer<double>();
-  ReceivePort receivePort = ReceivePort();
-
-  double onResult() {
-    try {
-      final imagePath1 = sourceUrl.toNativeUtf8();
-      final imagePath2 = targetUrl.toNativeUtf8();
-      double result = _bindings.compareImageSimilaritySSIM(imagePath1.cast(), imagePath2.cast()).similarity;
-      return result;
-    } catch (e) {
-      return 0;
-    }
-  }
-
-  // 启动Isolate并传递参数
-  Map<String, dynamic> param = {
-    'sendPort': receivePort.sendPort,
-    'onResult': onResult(),
-  };
-  Isolate.spawn(isolateFunction, param);
-
-  // 监听receivePort并处理来自Isolate的消息
-  receivePort.listen((dynamic message) {
-    if (message is double) {
-      // 收到Isolate返回的结果，完成Future
-      completer.complete(message);
-    }
-  });
-  return completer.future;
-}
-
 ///获取图片相似度(哈希感知)
 Future<double> compareImageSimilarityPhash({required String sourceUrl, required String targetUrl}) async {
   Completer<double> completer = Completer<double>();
@@ -83,7 +21,7 @@ Future<double> compareImageSimilarityPhash({required String sourceUrl, required 
   double onResult() {
     final imagePath1 = sourceUrl.toNativeUtf8();
     final imagePath2 = targetUrl.toNativeUtf8();
-    double result = _bindings.compareImageSimilarityPhash(imagePath1.cast(), imagePath2.cast()).similarity;
+    double result = _bindings.compareImageSimilarityPhash(imagePath1.cast(), imagePath2.cast());
     return result;
   }
 
@@ -112,10 +50,7 @@ Future<List<MediaDetectionResult>> calculateImageBlur({required List<String> ima
   Future<MediaDetectionResult?> getImageBlur(String url) async {
     final imagePath = url.toNativeUtf8();
     double blurValue = _bindings.calculateImageBlur(imagePath.cast());
-    if (blurValue < 10000) {
-      return MediaDetectionResult(url: url, value: blurValue);
-    }
-    return null;
+    return MediaDetectionResult(url: url, value: blurValue);
   }
 
   // 使用compute函数执行并发操作
@@ -130,6 +65,35 @@ Future<List<MediaDetectionResult>> calculateImageBlur({required List<String> ima
   return results;
 }
 
+/// 比较2个视频相似度
+Future<double> compareVideoSimilarity({required String sourceUrl, required String targetUrl}) async {
+  Completer<double> completer = Completer<double>();
+  ReceivePort receivePort = ReceivePort();
+
+  double onResult() {
+    final imagePath1 = sourceUrl.toNativeUtf8();
+    final imagePath2 = targetUrl.toNativeUtf8();
+    double result = _bindings.compareVideoSimilarity(imagePath1.cast(), imagePath2.cast());
+    return result;
+  }
+
+  // 启动Isolate并传递参数
+  Map<String, dynamic> param = {
+    'sendPort': receivePort.sendPort,
+    'onResult': onResult(),
+  };
+  Isolate.spawn(isolateFunction, param);
+
+  // 监听receivePort并处理来自Isolate的消息
+  receivePort.listen((dynamic message) {
+    if (message is double) {
+      // 收到Isolate返回的结果，完成Future
+      completer.complete(message);
+    }
+  });
+  return completer.future;
+}
+
 /// 以图搜图
 /// 通过compute实现
 Future<List<MediaDetectionResult>> findSimilarImages(
@@ -140,7 +104,7 @@ Future<List<MediaDetectionResult>> findSimilarImages(
   Future<MediaDetectionResult?> compareImage(String url) async {
     final imagePath1 = originUrl.toNativeUtf8();
     final imagePath2 = url.toNativeUtf8();
-    double similarValue = _bindings.compareImageSimilarityPhash(imagePath1.cast(), imagePath2.cast()).similarity;
+    double similarValue = _bindings.compareImageSimilarityPhash(imagePath1.cast(), imagePath2.cast());
     if (similarValue > 0.8) {
       return MediaDetectionResult(url: url, value: similarValue);
     }
@@ -209,7 +173,7 @@ Future<List<MediaDetectionResult>> findSimilarVideos(
   Future<MediaDetectionResult?> compareVideo(String url) async {
     final videoPath1 = originUrl.toNativeUtf8();
     final videoPath2 = url.toNativeUtf8();
-    double similarValue = _bindings.calculateVideoSimilarity(videoPath1.cast(), videoPath2.cast());
+    double similarValue = _bindings.compareVideoSimilarity(videoPath1.cast(), videoPath2.cast());
     if (similarValue >= 0.8) {
       return MediaDetectionResult(url: url, value: similarValue);
     }
@@ -236,6 +200,23 @@ Future<List<MediaDetectionResult>> findSimilarVideos2(
   SimilarityResult result =
       _bindings.findSimilarVideos(originUrl.cast(), targetUrls.cast<Pointer<Char>>(), videoUrls.length);
   return pointerToStringList(result);
+}
+
+/// 图片分类(聚类算法)
+Future<List<int>> clusterImages(List<String> imageList, int K) async {
+  Pointer<Pointer<Utf8>> pointerImageList = convertStringListToPointer(imageList);
+  Pointer<Int32> pointerResult =
+      _bindings.clusterImages(pointerImageList.cast<Pointer<Char>>(), imageList.length, K) as Pointer<Int32>;
+  List<int> result = convertPointerToIntList(pointerResult, imageList.length);
+  return result;
+}
+
+/// 视频分类(聚类算法)
+Future<List<int>> clusterVideos(List<String> videoList, int K) async {
+  Pointer<Pointer<Utf8>> pointerImageList = convertStringListToPointer(videoList);
+  Pointer<Int> pointerResult = _bindings.clusterVideos(pointerImageList.cast<Pointer<Char>>(), videoList.length, K);
+  List<int> result = convertPointerToIntList(pointerResult as Pointer<Int32>, videoList.length);
+  return result;
 }
 
 List<MediaDetectionResult> pointerToStringList(SimilarityResult similarityResult) {
@@ -274,6 +255,12 @@ Pointer<Pointer<Utf8>> convertStringListToPointer(List<String> stringList) {
   }
 
   return stringPointerList;
+}
+
+// 将 Pointer<Int> 转换为 List<int>
+List<int> convertPointerToIntList(Pointer<Int32> pointer, int count) {
+  List<int> intList = pointer.asTypedList(count);
+  return intList;
 }
 
 class MediaDetectionResult {

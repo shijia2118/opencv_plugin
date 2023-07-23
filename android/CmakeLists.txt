@@ -17,6 +17,7 @@ add_library(
         opencv_plugin
         SHARED
         ../ios/native_code/image_process.cpp 
+
 )
 
 add_library(
