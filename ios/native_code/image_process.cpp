@@ -331,37 +331,69 @@ cv::VideoCapture createVideoCapture(const std::string& videoPath) {
     return videoCapture;
 }
 
+cv::Mat calculatePerceptualHash2(const char* imagePath) {
+    // 读取图像
+    cv::Mat image = cv::imread(imagePath);
+
+    if (image.empty()) {
+        std::cerr << "Failed to read image: " << imagePath << std::endl;
+        return cv::Mat();  // Return an empty cv::Mat on image read failure
+    }
+
+    // 将图像调整为8x8大小
+    cv::Mat resizedImage;
+    cv::resize(image, resizedImage, cv::Size(8, 8));
+
+    // 转换为灰度图像，并映射0和1为255和0
+    cv::Mat grayImage;
+    cv::cvtColor(resizedImage, grayImage, cv::COLOR_BGR2GRAY);
+    grayImage = 255 - grayImage;
+
+    return grayImage;
+}
 
 
 
+class ParallelExtractImageFeatures : public cv::ParallelLoopBody {
+public:
+    ParallelExtractImageFeatures(const char** imagePaths, int numImages, std::vector<cv::Mat>& features)
+        : imagePaths_(imagePaths), numImages_(numImages), features_(features) {}
+
+    virtual void operator()(const cv::Range& range) const {
+        for (int i = range.start; i < range.end; i++) {
+            const char* videoPath(imagePaths_[i]);
+            cv::Mat hist = calculatePerceptualHash2(videoPath);
+            features_[i] = hist;
+        }
+    }
+
+private:
+    const char** imagePaths_;
+    int numImages_;
+    std::vector<cv::Mat>& features_;
+};
 
 /// @brief 图片分类(Kmeans)
 /// @param imagePaths 
 /// @param numImages 
 /// @return 
 int* clusterImages(const char** imagePaths, int numImages, int K) {
-    // 读取图像并将其转换为特征向量
-    std::vector<cv::Mat> images;
+    // 并行计算感知哈希值
+    std::vector<cv::Mat> features(numImages);
+    #pragma omp parallel for
     for (int i = 0; i < numImages; ++i) {
-        std::string path = imagePaths[i];
-        cv::Mat image = cv::imread(path);
-        if (image.empty()) {
-            std::cerr << "Failed to read image: " << path << std::endl;
-            continue;
+        features[i] = calculatePerceptualHash2(imagePaths[i]);
+    }
+
+    // 将哈希值转换为特征向量
+    cv::Mat data(features.size(), features[0].cols * features[0].rows, CV_32F);
+    for (int i = 0; i < features.size(); ++i) {
+        for (int j = 0; j < features[i].cols * features[i].rows; ++j) {
+            data.at<float>(i, j) = static_cast<float>(features[i].at<uchar>(0, j));
         }
-        cv::resize(image, image, cv::Size(64, 64));
-        cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-        image = image.reshape(1, 1);
-        images.push_back(image);
     }
 
-    // 将所有图像的特征向量堆叠在一起
-    cv::Mat data = cv::Mat::zeros(images.size(), images[0].cols, CV_32F);
-    for (int i = 0; i < images.size(); ++i) {
-        images[i].copyTo(data.row(i));
-    }
-
-    // 使用kmeans算法对图像进行聚类
+    // 使用kmeans算法对特征向量进行聚类
     cv::Mat labels;
     cv::kmeans(data, K, labels, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0), 3, cv::KMEANS_PP_CENTERS);
 
@@ -372,6 +404,8 @@ int* clusterImages(const char** imagePaths, int numImages, int K) {
     }
     return result;
 }
+
+
 
 
 /// @brief 视频特征值(直方图)
