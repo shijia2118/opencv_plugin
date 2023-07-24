@@ -43,26 +43,10 @@ Future<double> compareImageSimilarityPhash({required String sourceUrl, required 
 }
 
 ///计算图片模糊度
-Future<List<MediaDetectionResult>> calculateImageBlur({required List<String> imageList}) async {
-  final results = <MediaDetectionResult>[];
-
-  // 定义计算相似度的函数
-  Future<MediaDetectionResult?> getImageBlur(String url) async {
-    final imagePath = url.toNativeUtf8();
-    double blurValue = _bindings.calculateImageBlur(imagePath.cast());
-    return MediaDetectionResult(url: url, value: blurValue);
-  }
-
-  // 使用compute函数执行并发操作
-  final futures = imageList.map((url) => compute(getImageBlur, url)).toList();
-  final groups = await Future.wait(futures);
-  for (var group in groups) {
-    if (group != null) {
-      results.add(group);
-    }
-  }
-
-  return results;
+Future<MediaDetectionResult> calculateImageBlur({required String imageUrl}) async {
+  final imagePath = imageUrl.toNativeUtf8();
+  double blurValue = _bindings.calculateImageBlur(imagePath.cast());
+  return MediaDetectionResult(url: imageUrl, value: blurValue);
 }
 
 /// 比较2个视频相似度

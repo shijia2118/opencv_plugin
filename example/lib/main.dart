@@ -4,11 +4,18 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:image_picker/image_picker.dart';
+import 'package:isolate_manager/isolate_manager.dart';
 import 'package:opencv_plugin/opencv_plugin.dart' as opencv;
 import 'package:opencv_plugin_example/permittion_util.dart';
 
 void main() {
   runApp(const MyApp());
+}
+
+@pragma('vm:entry-point')
+Future<void> isoLateBlurImage(String url) async {
+  // final blurImage = await opencv.calculateImageBlur(imageUrl: url);
+  print('>>>>>>>>>>blur==$url');
 }
 
 class MyApp extends StatefulWidget {
@@ -21,6 +28,12 @@ class MyApp extends StatefulWidget {
 class _MyAppState extends State<MyApp> {
   String? imageUrl1;
   String? imageUrl2;
+
+  final isolateManager = IsolateManager.create(
+    concurrent: 5,
+    isoLateBlurImage,
+    isDebug: true,
+  );
 
   @override
   void initState() {
@@ -110,11 +123,9 @@ class _MyAppState extends State<MyApp> {
       if (files.isNotEmpty) {
         List<String> imageList = files.map((f) => f.path).toList();
         DateTime startTime = DateTime.now();
-        var blurImages = await opencv.calculateImageBlur(imageList: imageList);
         printDateDiff(startTime);
-        for (var blur in blurImages) {
-          print('>>>>>>>>>>>>路径url==${blur.url}');
-          print('>>>>>>>>>>>>模糊度==${blur.value}');
+        for (var url in imageList) {
+          isolateManager.compute(url);
         }
       }
     }
@@ -128,7 +139,7 @@ class _MyAppState extends State<MyApp> {
       List<XFile> files = await picker.pickMultiImage();
       if (files.length == 10) {
         List<String> paths = [];
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < 1000; i++) {
           XFile file = files[i % 10];
           paths.add(file.path);
         }
