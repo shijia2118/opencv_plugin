@@ -14,8 +14,8 @@ void main() {
 
 @pragma('vm:entry-point')
 Future<void> isoLateBlurImage(String url) async {
-  // final blurImage = await opencv.calculateImageBlur(imageUrl: url);
-  print('>>>>>>>>>>blur==$url');
+  final blurImage = await opencv.calculateImageBlur(imageUrl: url);
+  print('>>>>>>>>>>blur==${blurImage.value}');
 }
 
 class MyApp extends StatefulWidget {
@@ -120,11 +120,15 @@ class _MyAppState extends State<MyApp> {
     if (result) {
       final ImagePicker picker = ImagePicker();
       List<XFile> files = await picker.pickMultiImage();
-      if (files.isNotEmpty) {
-        List<String> imageList = files.map((f) => f.path).toList();
+      if (files.length == 10) {
+        List<String> paths = [];
+        for (int i = 0; i < 1000; i++) {
+          XFile file = files[i % 10];
+          paths.add(file.path);
+        }
         DateTime startTime = DateTime.now();
         printDateDiff(startTime);
-        for (var url in imageList) {
+        for (var url in paths) {
           isolateManager.compute(url);
         }
       }

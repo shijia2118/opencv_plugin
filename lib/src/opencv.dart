@@ -15,31 +15,10 @@ final OpencvBindings _bindings = OpencvBindings(_dylib);
 
 ///获取图片相似度(哈希感知)
 Future<double> compareImageSimilarityPhash({required String sourceUrl, required String targetUrl}) async {
-  Completer<double> completer = Completer<double>();
-  ReceivePort receivePort = ReceivePort();
-
-  double onResult() {
-    final imagePath1 = sourceUrl.toNativeUtf8();
-    final imagePath2 = targetUrl.toNativeUtf8();
-    double result = _bindings.compareImageSimilarityPhash(imagePath1.cast(), imagePath2.cast());
-    return result;
-  }
-
-  // 启动Isolate并传递参数
-  Map<String, dynamic> param = {
-    'sendPort': receivePort.sendPort,
-    'onResult': onResult(),
-  };
-  Isolate.spawn(isolateFunction, param);
-
-  // 监听receivePort并处理来自Isolate的消息
-  receivePort.listen((dynamic message) {
-    if (message is double) {
-      // 收到Isolate返回的结果，完成Future
-      completer.complete(message);
-    }
-  });
-  return completer.future;
+  final imagePath1 = sourceUrl.toNativeUtf8();
+  final imagePath2 = targetUrl.toNativeUtf8();
+  double result = _bindings.compareImageSimilarityPhash(imagePath1.cast(), imagePath2.cast());
+  return result;
 }
 
 ///计算图片模糊度
@@ -51,31 +30,10 @@ Future<MediaDetectionResult> calculateImageBlur({required String imageUrl}) asyn
 
 /// 比较2个视频相似度
 Future<double> compareVideoSimilarity({required String sourceUrl, required String targetUrl}) async {
-  Completer<double> completer = Completer<double>();
-  ReceivePort receivePort = ReceivePort();
-
-  double onResult() {
-    final imagePath1 = sourceUrl.toNativeUtf8();
-    final imagePath2 = targetUrl.toNativeUtf8();
-    double result = _bindings.compareVideoSimilarity(imagePath1.cast(), imagePath2.cast());
-    return result;
-  }
-
-  // 启动Isolate并传递参数
-  Map<String, dynamic> param = {
-    'sendPort': receivePort.sendPort,
-    'onResult': onResult(),
-  };
-  Isolate.spawn(isolateFunction, param);
-
-  // 监听receivePort并处理来自Isolate的消息
-  receivePort.listen((dynamic message) {
-    if (message is double) {
-      // 收到Isolate返回的结果，完成Future
-      completer.complete(message);
-    }
-  });
-  return completer.future;
+  final imagePath1 = sourceUrl.toNativeUtf8();
+  final imagePath2 = targetUrl.toNativeUtf8();
+  double result = _bindings.compareVideoSimilarity(imagePath1.cast(), imagePath2.cast());
+  return result;
 }
 
 /// 以图搜图

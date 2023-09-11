@@ -464,6 +464,9 @@ cv::Mat extractVideoFeatures(const char* videoPath) {
 double compareVideoSimilarity(const char* videoPath1, const char* videoPath2) {
     cv::Mat hist1 = extractVideoFeatures(videoPath1);
     cv::Mat hist2 = extractVideoFeatures(videoPath2);
+    if(hist1.empty()||hist2.empty()){
+        return 0.0;
+    }
 
     double similarity = cv::compareHist(hist1, hist2, cv::HISTCMP_CORREL);
     return similarity;
@@ -497,7 +500,7 @@ private:
 int* clusterVideos(const char** videoPaths, int numVideos, int K) {
     // 提取视频特征向量
     std::vector<cv::Mat> features(numVideos);
-    cv::parallel_for_(cv::Range(0, numVideos), ParallelExtractFeatures(videoPaths, numVideos, features));
+    cv::parallel_for_(cv::Range(0, numVideos), ParallelExtractFeatures(videoPaths, numVideos, features),4);
 
     // 转换数据类型
     cv::Mat featuresMat;
@@ -506,9 +509,14 @@ int* clusterVideos(const char** videoPaths, int numVideos, int K) {
     }
     featuresMat.convertTo(featuresMat, CV_32F);
 
+    // 使用PCA对特征向量进行降维
+    int reducedDimension = 100; // 降维后的维度
+    cv::PCA pca(featuresMat, cv::Mat(), cv::PCA::DATA_AS_ROW, reducedDimension);
+    cv::Mat reducedFeatures = pca.project(featuresMat);
+
     // 运行kmeans聚类算法
     cv::Mat labels, centers;
-    cv::kmeans(featuresMat, K, labels, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 5, 1.0), 3, cv::KMEANS_PP_CENTERS, centers);
+    cv::kmeans(reducedFeatures, K, labels, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 10, 1.0), 3, cv::KMEANS_PP_CENTERS, centers);
 
      // 将聚类结果存储在动态分配的数组中
     int* result = new int[numVideos];
@@ -518,6 +526,7 @@ int* clusterVideos(const char** videoPaths, int numVideos, int K) {
 
     return result;
 }
+
 
 
 
